@@ -5,8 +5,8 @@
 @section('content')
 
 @php
-    // คำนวณจำนวนงานค้างแบบ Real-time สำหรับแสดงบน Badge
-    $isUserAdmin = auth()->check() && auth()->user()->isAdmin();
+    // คำนวณจำนวนงานค้างแบบ Real-time สำหรับแสดงบน Badge (อัปเดตให้รองรับ Manager)
+    $isUserAdmin = auth()->check() && (auth()->user()->isAdmin() || strtolower(auth()->user()->role) === 'manager');
     $currentUserId = auth()->id();
 
     // นับจำนวน Following
@@ -24,6 +24,18 @@
         })->count();
 
     $totalPendingCount = $followingBadge + $forecastBadge;
+
+    // ดึงรายชื่อบริษัทที่ไม่ซ้ำกันทั้งหมดสำหรับนำมาสร้างเป็นตัวเลือกในช่องค้นหาบริษัท
+    $uniqueCompanies = \Illuminate\Support\Facades\DB::table('sales_deals')
+        ->join('customers', 'sales_deals.customer_id', '=', 'customers.id')
+        ->when(!$isUserAdmin, function($q) use ($currentUserId) {
+            $q->where('sales_deals.user_id', $currentUserId);
+        })
+        ->select('customers.company_name')
+        ->whereNotNull('customers.company_name')
+        ->distinct()
+        ->orderBy('customers.company_name', 'asc')
+        ->pluck('company_name');
 @endphp
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -138,23 +150,34 @@
         </div>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start justify-between gap-4">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-filter text-indigo-500 text-lg"></i>
             <span class="font-semibold text-gray-750 text-sm">เครื่องมือคัดกรอง: เลือกดูงานขายตามเงื่อนไข</span>
         </div>
         
-        <form action="{{ route('deals.index') }}" method="GET" class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            @if($status)
-                <input type="hidden" name="status" value="{{ $status }}">
+        <form action="{{ route('deals.index') }}" method="GET" class="flex flex-wrap items-center gap-3 w-full">
+            @if($status ?? request('status'))
+                <input type="hidden" name="status" value="{{ $status ?? request('status') }}">
             @endif
             
-            @if(auth()->check() && auth()->user()->isAdmin())
-                <div class="w-full sm:w-auto min-w-[220px]">
-                    <select name="sales_person_id" id="sales-search-select" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer">
-                        <option value="">-- แสดงการขายของพนักงานทุกคน --</option>
+            <div class="w-full sm:w-auto min-w-[240px] flex-1 sm:flex-none">
+                <select name="search_company" id="company-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+                    <option value="">-- 🔍 ค้นหาชื่อบริษัท... --</option>
+                    @foreach($uniqueCompanies as $companyName)
+                        <option value="{{ $companyName }}" {{ request('search_company') == $companyName ? 'selected' : '' }}>
+                            {{ $companyName }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            @if(auth()->check() && (auth()->user()->isAdmin() || strtolower(auth()->user()->role) === 'manager'))
+                <div class="w-full sm:w-auto min-w-[220px] flex-1 sm:flex-none">
+                    <select name="sales_person_id" id="sales-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+                        <option value="">-- แสดงพนักงานทุกคน --</option>
                         @foreach($salesPersons as $person)
-                            <option value="{{ $person->id }}" {{ ($selectedSalesPerson ?? '') == $person->id ? 'selected' : '' }}>
+                            <option value="{{ $person->id }}" {{ (request('sales_person_id') ?? $selectedSalesPerson ?? '') == $person->id ? 'selected' : '' }}>
                                 {{ $person->name }}
                             </option>
                         @endforeach
@@ -162,8 +185,8 @@
                 </div>
             @endif
 
-            <div class="w-full sm:w-auto">
-                <select name="month" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 min-w-[140px] cursor-pointer h-[42px]">
+            <div class="w-full sm:w-auto min-w-[140px] flex-1 sm:flex-none">
+                <select name="month" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
                     <option value="">-- ทุกเดือน --</option>
                     @php
                         $months = [
@@ -173,47 +196,52 @@
                         ];
                     @endphp
                     @foreach($months as $num => $name)
-                        <option value="{{ $num }}" {{ ($selectedMonth ?? '') == $num ? 'selected' : '' }}>{{ $name }}</option>
+                        <option value="{{ $num }}" {{ (request('month') ?? $selectedMonth ?? '') == $num ? 'selected' : '' }}>{{ $name }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="w-full sm:w-auto">
-                <select name="year" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 min-w-[120px] cursor-pointer h-[42px]">
+            <div class="w-full sm:w-auto min-w-[120px] flex-1 sm:flex-none">
+                <select name="year" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
                     <option value="">-- ทุกปี --</option>
                     @php
                         $currentYear = date('Y');
                     @endphp
                     @for($y = $currentYear + 1; $y >= $currentYear - 5; $y--)
-                        <option value="{{ $y }}" {{ ($selectedYear ?? '') == $y ? 'selected' : '' }}>
+                        <option value="{{ $y }}" {{ (request('year') ?? $selectedYear ?? '') == $y ? 'selected' : '' }}>
                             พ.ศ. {{ $y + 543 }} ({{ $y }})
                         </option>
                     @endfor
                 </select>
             </div>
             
-            @if(($selectedSalesPerson ?? '') || ($selectedMonth ?? '') || ($selectedYear ?? ''))
-                <a href="{{ route('deals.index', ['status' => $status]) }}" class="text-xs text-rose-500 hover:underline flex items-center gap-1 ml-1" title="ล้างการกรองทั้งหมด">
-                    <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรอง
-                </a>
-            @endif
+            <div class="flex items-center gap-2">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors h-[42px] whitespace-nowrap shadow-sm">
+                    ค้นหา
+                </button>
+                @if(request('search_company') || request('sales_person_id') || request('month') || request('year'))
+                    <a href="{{ route('deals.index', ['status' => $status ?? request('status')]) }}" class="text-xs text-rose-500 hover:underline flex items-center gap-1 whitespace-nowrap ml-1" title="ล้างการกรองทั้งหมด">
+                        <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรอง
+                    </a>
+                @endif
+            </div>
         </form>
     </div>
 
     <div class="flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('deals.index', ['sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !$status ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
+        <a href="{{ route('deals.index', ['sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
             ทั้งหมด
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
             Closed Sale
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Following', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Following', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
             Following
             @if($followingBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $followingBadge }}</span>
             @endif
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Forecast', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Forecast', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
             Forecast
             @if($forecastBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $forecastBadge }}</span>
@@ -262,7 +290,7 @@
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition-colors">
                             <td class="px-6 py-4 font-medium text-slate-900">
-                                <div>{{ $deal->customer->company_name }}</div>
+                                <div>{{ $deal->customer->company_name ?? 'ไม่ระบุชื่อบริษัท' }}</div>
                                 @if($deal->group)
                                     <span class="inline-flex items-center text-[11px] font-normal text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded mt-1">
                                         📁 กลุ่ม: {{ $deal->group }}
@@ -343,7 +371,7 @@
                                 <div class="flex items-center justify-center gap-2">
                                     <button type="button" 
                                             data-deal-info="{{ json_encode([
-                                                'company_name' => $deal->customer->company_name,
+                                                'company_name' => $deal->customer->company_name ?? 'ไม่ระบุชื่อบริษัท',
                                                 'group' => $deal->group,
                                                 'sales_person' => $deal->salesPerson->name ?? $deal->user->name ?? 'ไม่ระบุ',
                                                 'status' => $deal->status,
@@ -380,7 +408,7 @@
                     @empty
                         <tr>
                             <td colspan="9" class="px-6 py-12 text-center text-gray-400"> <i class="fa-solid fa-file-circle-xmark text-3xl mb-2 block"></i>
-                                ยังไม่มีการเปิดการขายในระบบ
+                                ยังไม่มีการเปิดการขายในระบบ (หรือไม่มีข้อมูลตามเงื่อนไขที่คุณค้นหา)
                             </td>
                         </tr>
                     @endforelse
@@ -388,9 +416,9 @@
             </table>
         </div>
 
-        @if($deals->hasPages())
+        @if(method_exists($deals, 'hasPages') && $deals->hasPages())
             <div class="p-4 border-t border-gray-100 bg-slate-50">
-                {{ $deals->appends(['status' => $status, 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? ''])->links() }}
+                {{ $deals->appends(['status' => $status ?? request('status'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')])->links() }}
             </div>
         @endif
     </div>
@@ -406,7 +434,7 @@
             </div>
             <button type="button" onclick="closeViewDealModal()" class="text-gray-400 hover:text-gray-600 transition-colors text-2xl font-semibold leading-none">&times;</button>
         </div>
-        
+
         <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-gray-150">
                 <div>
@@ -445,8 +473,8 @@
                             </tr>
                         </thead>
                         <tbody id="modalItemsTableBody" class="divide-y divide-gray-100 text-gray-700">
-                            </tbody>
-                        tfoot>
+                        </tbody>
+                        <tfoot>
                             <tr class="bg-slate-50 font-bold border-t border-gray-100 text-slate-900">
                                 <td colspan="4" class="px-4 py-3 text-right text-sm">ยอดเงินรวมทั้งหมด:</td>
                                 <td id="modalTotalAmount" class="px-4 py-3 text-right text-sm text-indigo-600 font-extrabold">-</td>
@@ -478,11 +506,23 @@
 
 <script>
     $(document).ready(function() {
-        $('#sales-search-select').select2({
-            placeholder: "-- พิมพ์เพื่อค้นหาชื่อพนักงาน --",
-            allowClear: true,
-            width: 'resolve'
-        });
+        // ให้ช่องค้นหาชื่อบริษัทสามารถพิมพ์เพื่อค้นหาแบบคัดกรองตัวอักษรได้เหมือนพนักงาน
+        if ($('#company-search-select').length) {
+            $('#company-search-select').select2({
+                placeholder: "-- 🔍 ค้นหาชื่อบริษัท... --",
+                allowClear: true,
+                width: '100%'
+            });
+        }
+
+        // ให้ช่องค้นหาพนักงานสามารถพิมพ์ชื่อได้
+        if ($('#sales-search-select').length) {
+            $('#sales-search-select').select2({
+                placeholder: "-- พิมพ์เพื่อค้นหาชื่อพนักงาน --",
+                allowClear: true,
+                width: '100%'
+            });
+        }
 
         // เปิดโอกาสให้ปิดเมื่อคลิกพื้นหลังสีดำรอบๆ ตัว Popup
         $('#viewDealModal').on('click', function(e) {
