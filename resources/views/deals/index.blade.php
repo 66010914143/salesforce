@@ -3,9 +3,33 @@
 @section('page_title', 'บันทึกงานขาย (Deals)')
 
 @section('content')
+
+@php
+    // คำนวณจำนวนงานค้างแบบ Real-time สำหรับแสดงบน Badge
+    $isUserAdmin = auth()->check() && auth()->user()->isAdmin();
+    $currentUserId = auth()->id();
+
+    // นับจำนวน Following
+    $followingBadge = \Illuminate\Support\Facades\DB::table('sales_deals')
+        ->where('status', 'Following')
+        ->when(!$isUserAdmin, function($q) use ($currentUserId) {
+            $q->where('user_id', $currentUserId);
+        })->count();
+
+    // นับจำนวน Forecast
+    $forecastBadge = \Illuminate\Support\Facades\DB::table('sales_deals')
+        ->where('status', 'Forecast')
+        ->when(!$isUserAdmin, function($q) use ($currentUserId) {
+            $q->where('user_id', $currentUserId);
+        })->count();
+
+    $totalPendingCount = $followingBadge + $forecastBadge;
+@endphp
+
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
     /* ปรับแต่งสไตล์ Select2 ให้เข้ากับธีม Tailwind CSS ของหน้าเดิม */
@@ -36,9 +60,71 @@
         border-radius: 0.375rem !important;
         padding: 5px 8px !important;
     }
+
+    /* เพิ่มการตกแต่ง UI สำหรับ Select2 Multiple Select ให้เข้ากับดีไซน์เดิม */
+    .select2-container--default .select2-selection--multiple {
+        background-color: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 0.375rem !important;
+        min-height: 32px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+        color: #334155 !important;
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        padding: 2px 0 !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #334155 !important;
+        border-radius: 0.25rem !important;
+        padding: 2px 6px !important;
+        font-size: 0.75rem !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #ef4444 !important;
+        margin-right: 4px !important;
+        border: none !important;
+        background: transparent !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+        background: transparent !important;
+        color: #b91c1c !important;
+    }
 </style>
 
 <div class="space-y-6">
+
+    @if($totalPendingCount > 0)
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-sm animate-pulse-once">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fa-solid fa-bell text-amber-500 text-xl animate-bounce"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-amber-800 font-bold">
+                            ⚠️ แจ้งเตือนงานรอการติดตาม!
+                        </p>
+                        <p class="text-sm text-amber-700 mt-0.5">
+                            คุณการขายงานสถานะ <span class="font-bold">Following</span> หรือ <span class="font-bold">Forecast</span> ที่ต้องเร่งติดตามจำนวน <span class="text-red-600 font-bold text-base px-1">{{ $totalPendingCount }}</span> รายการ เพื่อปิดการขายให้สำเร็จ
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div>
@@ -115,17 +201,23 @@
     </div>
 
     <div class="flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('deals.index', ['sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="px-4 py-2 rounded-lg font-medium transition-colors {{ !$status ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
+        <a href="{{ route('deals.index', ['sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !$status ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
             ทั้งหมด
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
             Closed Sale
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Following', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Following', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
             Following
+            @if($followingBadge > 0)
+                <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $followingBadge }}</span>
+            @endif
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Forecast', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Forecast', 'sales_person_id' => $selectedSalesPerson, 'month' => $selectedMonth ?? '', 'year' => $selectedYear ?? '']) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $status == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
             Forecast
+            @if($forecastBadge > 0)
+                <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $forecastBadge }}</span>
+            @endif
         </a>
     </div>
 
@@ -283,6 +375,35 @@
             allowClear: true,
             width: 'resolve'
         });
+    });
+
+    // 🟢 แจ้งเตือนงานค้างด้วย SweetAlert2 (จะเด้งเมื่อมีงานที่ยังไม่ได้ปิดการขาย)
+    document.addEventListener("DOMContentLoaded", function() {
+        let pendingCount = {{ $totalPendingCount }};
+        
+        // ใช้ Session Storage เช็คเพื่อไม่ให้เด้งรบกวนทุกครั้งที่กด Refresh ให้เด้งแค่ตอนเปิดหน้านี้ครั้งแรก
+        if (pendingCount > 0 && !sessionStorage.getItem('pendingAlertShown')) {
+            Swal.fire({
+                title: '<span style="color:#b45309;">แจ้งเตือนงานค้าง!</span>',
+                html: `คุณมีงานขายในสถานะ <b>Following</b> และ <b>Forecast</b> จำนวน <b style="color:#ef4444; font-size:1.1rem;">${pendingCount}</b> งาน <br><span style="font-size:0.9rem; color:#6b7280; margin-top:8px; display:block;">โปรดติดตามงานและอัปเดตเป็น Closed Sale เมื่อปิดการขายเรียบร้อยแล้ว</span>`,
+                icon: 'warning',
+                confirmButtonText: 'รับทราบ',
+                confirmButtonColor: '#f59e0b',
+                toast: true, 
+                position: 'top-end',
+                timer: 6000, 
+                timerProgressBar: true,
+                showClass: {
+                    popup: 'animate__animated animate__fadeInDown'
+                },
+                hideClass: {
+                    popup: 'animate__animated animate__fadeOutUp'
+                }
+            });
+            
+            // บันทึกไว้ว่าแจ้งเตือนแล้ว จะได้ไม่เด้งซ้ำรัวๆ
+            sessionStorage.setItem('pendingAlertShown', 'true');
+        }
     });
 </script>
 @endsection

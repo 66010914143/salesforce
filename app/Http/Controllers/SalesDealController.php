@@ -57,8 +57,17 @@ class SalesDealController extends Controller
         // ดึงรายชื่อพนักงานทั้งหมดส่งไปให้ Admin เลือกกรองในหน้า View
         $salesPersons = User::all();
 
-        // 🟢 ส่งค่า selectedMonth และ selectedYear กลับไปแสดงผลที่ View
-        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear'));
+        // 🔔 เช็คงานค้าง (Following, Forecast) ของผู้ใช้งานปัจจุบันเพื่อนำไปทำแจ้งเตือน
+        // โดยใช้เงื่อนไขตรวจสอบ status รูปแบบตัวอักษรเล็ก/ใหญ่ให้ครอบคลุม
+        $pendingDealsCount = 0;
+        if (Auth::check()) {
+            $pendingDealsCount = SalesDeal::where('user_id', Auth::id())
+                ->whereIn('status', ['following', 'Following', 'forecast', 'Forecast'])
+                ->count();
+        }
+
+        // 🟢 ส่งค่าทั้งหมด (รวมถึง $pendingDealsCount) กลับไปแสดงผลที่ View
+        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear', 'pendingDealsCount'));
     }
 
     // หน้าฟอร์มสร้างดีลงานขายใหม่
