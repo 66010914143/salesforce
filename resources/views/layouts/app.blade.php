@@ -100,7 +100,7 @@
 
         <div class="flex-1 flex flex-col overflow-hidden">
             <header class="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-6 z-10">
-                <h2 class="text-xl font-semibold text-gray-700">@yield('page_title', 'ระบบฝ่ายขาย')</h2>
+                <h2 class="text-xl font-semibold text-gray-700">@yield('page_title', 'ระบบจัดการคอร์สเรียน')</h2>
                 <div class="flex items-center space-x-3">
                     @if(auth()->check())
                         <span class="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-medium border border-slate-200 flex items-center gap-1.5">
@@ -138,6 +138,53 @@
         </div>
 
     </div>
+
+    @if(auth()->check() && !auth()->user()->isAdmin() && !auth()->user()->isManager() && $sidebarPendingCount > 0)
+        <div id="pending-tasks-popup" style="display: none;" class="fixed bottom-5 right-5 w-[340px] bg-white border border-amber-200 rounded-xl shadow-2xl z-50 p-5 transform transition-all duration-300 ease-out">
+            <div class="flex items-start gap-3.5">
+                <div class="flex-shrink-0 w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 border border-amber-100">
+                    <i class="fa-solid fa-circle-info text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-900 text-base mb-1 tracking-wide">แจ้งเตือนงานค้าง</h4>
+                    <p class="text-xs text-gray-600 leading-relaxed mb-4">
+                        คุณมีรายการในสถานะ <span class="font-semibold text-slate-900">Following</span> และ <span class="font-semibold text-slate-900">Forecast</span> จำนวน <span class="font-bold text-rose-500 text-sm">{{ $sidebarPendingCount }}</span> งาน โปรดอัพเดทสถานะล่าสุดเป็น Closed sale หรือปรับเพิ่มข้อมูลบันทึกความคืบหน้า
+                    </p>
+                    <button id="btn-close-pending-popup" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg shadow-md hover:shadow-lg transition-all cursor-pointer text-center tracking-wider">
+                        รับทราบ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const popupElement = document.getElementById('pending-tasks-popup');
+                const closePopupButton = document.getElementById('btn-close-pending-popup');
+                
+                const currentPendingCount = "{{ $sidebarPendingCount }}";
+                const userId = "{{ auth()->id() }}";
+                const storageKey = 'crm_pending_ack_v3_' + userId;
+
+                // ตรวจสอบสถานะการกดรับทราบจาก localStorage
+                const isAcknowledged = localStorage.getItem(storageKey);
+
+                // เงื่อนไข: ถ้ายังไม่เคยเปิดหน้าเว็บและกด "รับทราบ" เลย ให้แสดง Pop-up แจ้งเตือนขึ้นมาค้างไว้
+                if (isAcknowledged !== 'true') {
+                    popupElement.style.display = 'block';
+                }
+
+                // เมื่อผู้ใช้งานคลิกปุ่มยืนยัน "รับทราบ"
+                if (closePopupButton) {
+                    closePopupButton.addEventListener('click', function() {
+                        // บันทึกค่าว่ารับทราบแล้วลงในเบราว์เซอร์ เพื่อไม่ให้เด้งขึ้นมาอีกแม้จะย้ายหน้าหรือรีเฟรชระบบ
+                        localStorage.setItem(storageKey, 'true');
+                        popupElement.style.display = 'none';
+                    });
+                }
+            });
+        </script>
+    @endif
 
 </body>
 </html>

@@ -5,34 +5,6 @@
 @section('content')
 <div class="space-y-6">
 
-    @if(session('success'))
-        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center gap-2 text-sm shadow-2xs animate-fade-in">
-            <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl flex items-center gap-2 text-sm shadow-2xs">
-            <i class="fa-solid fa-circle-exclamation text-rose-500 text-base"></i>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl space-y-1 text-sm shadow-2xs">
-            <div class="flex items-center gap-2 font-bold mb-1">
-                <i class="fa-solid fa-triangle-exclamation text-rose-500 text-base"></i>
-                <span>เกิดข้อผิดพลาดในการกรอกข้อมูล:</span>
-            </div>
-            <ul class="list-disc list-inside pl-2 space-y-0.5 text-xs text-rose-700">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col justify-between">

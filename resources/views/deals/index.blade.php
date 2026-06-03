@@ -365,8 +365,7 @@
                                 <div class="text-xs text-gray-600 max-w-xs truncate" title="{{ $deal->note ?? $deal->updated_note }}">
                                     {{ $deal->updated_note ?? $deal->note ?? '-' }}
                                 </div>
-                            </td>
-
+                            </td> 
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     <button type="button" 
@@ -606,34 +605,5 @@
         $('#viewDealModal').addClass('hidden').removeClass('flex');
         $('body').removeClass('overflow-hidden');
     }
-
-    // 🟢 แจ้งเตือนงานค้างด้วย SweetAlert2 (จะเด้งเมื่อมีงานที่ยังไม่ได้ปิดการขาย)
-    document.addEventListener("DOMContentLoaded", function() {
-        let pendingCount = {{ $totalPendingCount }};
-        
-        // ใช้ Session Storage เช็คเพื่อไม่ให้เด้งรบกวนทุกครั้งที่กด Refresh ให้เด้งแค่ตอนเปิดหน้านี้ครั้งแรก
-        if (pendingCount > 0 && !sessionStorage.getItem('pendingAlertShown')) {
-            Swal.fire({
-                title: '<span style="color:#b45309;">แจ้งเตือนงานค้าง!</span>',
-                html: `คุณมีงานขายในสถานะ <b>Following</b> และ <b>Forecast</b> จำนวน <b style="color:#ef4444; font-size:1.1rem;">${pendingCount}</b> งาน <br><span style="font-size:0.9rem; color:#6b7280; margin-top:8px; display:block;">โปรดติดตามงานและอัปเดตเป็น Closed Sale เมื่อปิดการขายเรียบร้อยแล้ว</span>`,
-                icon: 'warning',
-                confirmButtonText: 'รับทราบ',
-                confirmButtonColor: '#f59e0b',
-                toast: true, 
-                position: 'top-end',
-                timer: 6000, 
-                timerProgressBar: true,
-                showClass: {
-                    popup: 'animate__animated animate__fadeInDown'
-                },
-                hideClass: {
-                    popup: 'animate__animated animate__fadeOutUp'
-                }
-            });
-            
-            // บันทึกไว้ว่าแจ้งเตือนแล้ว จะได้ไม่เด้งซ้ำรัวๆ
-            sessionStorage.setItem('pendingAlertShown', 'true');
-        }
-    });
 </script>
 @endsection
