@@ -6,6 +6,7 @@
     <title>Salesforce CRM System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans antialiased">
 
@@ -63,7 +64,7 @@
                         <i class="fa-solid fa-handshake mr-3 w-5 text-center text-slate-400"></i> บันทึกงานขาย (Deals)
                     </div>
                     @if($sidebarPendingCount > 0)
-                        <span class="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse shadow-sm shadow-rose-500/50">
+                        <span id="sidebar-alert-badge" class="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse shadow-sm shadow-rose-500/50">
                             {{ $sidebarPendingCount }}
                         </span>
                     @endif
@@ -156,30 +157,70 @@
                 </div>
             </div>
         </div>
+    @endif
 
+    @if(auth()->check())
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const popupElement = document.getElementById('pending-tasks-popup');
                 const closePopupButton = document.getElementById('btn-close-pending-popup');
+                const badgeElement = document.getElementById('sidebar-alert-badge'); // ดึงตัวเลขแจ้งเตือน
                 
-                const currentPendingCount = "{{ $sidebarPendingCount }}";
+                // ดึงค่าจำนวนงานค้างปัจจุบันจากฐานข้อมูล
+                const currentPendingCount = parseInt("{{ $sidebarPendingCount }}") || 0;
                 const userId = "{{ auth()->id() }}";
-                const storageKey = 'crm_pending_ack_v3_' + userId;
+                
+                // เปลี่ยน Key ใหม่เพื่อให้ระบบเริ่มนับตรรกะใหม่
+                const storageKey = 'crm_pending_sidebar_v2_' + userId;
 
-                // ตรวจสอบสถานะการกดรับทราบจาก localStorage
-                const isAcknowledged = localStorage.getItem(storageKey);
+                // ดึงจำนวนงานที่เคยกดรับทราบไปแล้ว
+                const acknowledgedCountStr = localStorage.getItem(storageKey);
+                const acknowledgedCount = parseInt(acknowledgedCountStr);
 
-                // เงื่อนไข: ถ้ายังไม่เคยเปิดหน้าเว็บและกด "รับทราบ" เลย ให้แสดง Pop-up แจ้งเตือนขึ้นมาค้างไว้
-                if (isAcknowledged !== 'true') {
-                    popupElement.style.display = 'block';
+                // ตรรกะใหม่: ถ้ายังไม่เคยกดรับทราบ หรือจำนวนงานเปลี่ยนไปจากเดิม (เช่น มีงานเพิ่มใหม่) ให้แจ้งเตือนอีกครั้ง
+                let needsAlert = (acknowledgedCountStr === null || acknowledgedCount !== currentPendingCount);
+
+                // หากผู้ใช้กดเข้ามาดูที่หน้า Deals ให้ถือว่ารับทราบ "จำนวนล่าสุด" โดยอัตโนมัติ จะได้ไม่กวนใจ
+                @if(Request::is('deals*'))
+                    localStorage.setItem(storageKey, currentPendingCount);
+                    needsAlert = false; // ปิดการแสดงผลแจ้งเตือนเพราะเข้ามาดูหน้างานแล้ว
+                @endif
+
+                // แสดงหรือซ่อน Pop-up มุมล่างขวา
+                if (popupElement) {
+                    if (needsAlert && currentPendingCount > 0) {
+                        popupElement.style.display = 'block';
+                    } else {
+                        popupElement.style.display = 'none';
+                    }
                 }
 
-                // เมื่อผู้ใช้งานคลิกปุ่มยืนยัน "รับทราบ"
+                // ซ่อนหรือแสดงตัวเลขแจ้งเตือนที่ Sidebar
+                if (badgeElement) {
+                    if (!needsAlert) {
+                        badgeElement.style.display = 'none';
+                    } else {
+                        badgeElement.style.display = 'inline-flex';
+                    }
+                }
+
+                // เมื่อผู้ใช้งานคลิกปุ่มยืนยัน "รับทราบ" ที่มุมขวาล่าง
                 if (closePopupButton) {
                     closePopupButton.addEventListener('click', function() {
-                        // บันทึกค่าว่ารับทราบแล้วลงในเบราว์เซอร์ เพื่อไม่ให้เด้งขึ้นมาอีกแม้จะย้ายหน้าหรือรีเฟรชระบบ
-                        localStorage.setItem(storageKey, 'true');
-                        popupElement.style.display = 'none';
+                        // บันทึก "จำนวนล่าสุด" ลงไป เพื่อให้มันจำว่ารับทราบที่ยอดเท่านี้นะ
+                        localStorage.setItem(storageKey, currentPendingCount);
+                        
+                        // ปิดกล่อง Pop-up
+                        if (popupElement) {
+                            popupElement.style.opacity = '0';
+                            popupElement.style.transform = 'translateY(20px)';
+                            setTimeout(() => { popupElement.style.display = 'none'; }, 300);
+                        }
+                        
+                        // ปิด Badge ด้วยเมื่อกดรับทราบ
+                        if (badgeElement) {
+                            badgeElement.style.display = 'none';
+                        }
                     });
                 }
             });

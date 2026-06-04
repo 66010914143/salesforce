@@ -19,9 +19,10 @@ class SalesDealController extends Controller
         $status = $request->get('status');
         $selectedSalesPerson = $request->get('sales_person_id');
         
-        // 🟢 รับค่าตัวกรองเดือนและปี
+        // 🟢 รับค่าตัวกรองเดือน, ปี และ ประเภทลูกค้า
         $selectedMonth = $request->get('month');
         $selectedYear = $request->get('year');
+        $customerType = $request->get('customer_type'); // 🟢 เพิ่มบรรทัดนี้
 
         // ดึงข้อมูลดีลพร้อมข้อมูลลูกค้าและสินค้าที่เชื่อมโยงกัน
         $query = SalesDeal::with(['customer', 'dealItems.course']);
@@ -49,12 +50,37 @@ class SalesDealController extends Controller
             $query->whereYear('created_at', $selectedYear);
         }
 
+        // 🟢 แก้ไขระบบกวาดข้อมูลประเภทลูกค้า: ป้องกันกรณีฐานข้อมูลเก็บค่า person หรือ individual สลับกัน
+        if ($customerType) {
+            $query->whereHas('customer', function($q) use ($customerType) {
+                if ($customerType === 'organization') {
+                    // กรองกลุ่มองค์กร (รองรับทั้ง corporate และ organization)
+                    $q->where(function($subQ) {
+                        $subQ->where('type', 'LIKE', '%corporate%')
+                             ->orWhere('type', 'LIKE', '%organization%');
+                    });
+                } elseif ($customerType === 'individual') {
+                    // กรองกลุ่มบุคคล (ดักครบทั้ง person, individual และตัวพิมพ์เล็ก/ใหญ่)
+                    $q->where(function($subQ) {
+                        $subQ->where('type', 'LIKE', '%person%')
+                             ->orWhere('type', 'LIKE', '%individual%');
+                    });
+                } else {
+                    // กรณีค่าอื่น ๆ ให้ค้นหาตรง ๆ ตามที่ส่งมา
+                    $q->where('type', 'LIKE', '%' . $customerType . '%');
+                }
+            });
+        }
+
         // กรองตามสถานะดีลที่มีการกดลิงก์แท็บมาจากหน้าบ้าน (ถ้ามี)
         $deals = $query->when($status, function($query, $status) {
                 return $query->where('status', $status);
             })
             ->latest()
             ->paginate(15);
+            
+        // 🟢 แนบ request กลับไปที่ pagination เพื่อไม่ให้ parameter หลุดเวลาเปลี่ยนหน้า
+        $deals->appends($request->all());
 
         // ดึงรายชื่อพนักงานทั้งหมดส่งไปให้ Admin และ Manager เลือกกรองในหน้า View
         $salesPersons = User::all();
@@ -73,14 +99,22 @@ class SalesDealController extends Controller
             $pendingDealsCount = $pendingQuery->count();
         }
 
-        // 🟢 ส่งค่าทั้งหมด (รวมถึง $pendingDealsCount) กลับไปแสดงผลที่ View
-        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear', 'pendingDealsCount'));
+        // ➕ ตรวจสอบสถานะว่าพนักงานคนนี้เคยากดรับทราบการแจ้งเตือนงานขายไปหรือยังจาก Session
+        $showAlert = !session()->has('deal_alert_dismissed');
+
+        // 🟢 ส่งค่าทั้งหมด (รวมถึง $customerType) กลับไปแสดงผลที่ View
+        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear', 'customerType', 'pendingDealsCount', 'showAlert'));
     }
 
     // หน้าฟอร์มสร้างดีลงานขายใหม่
     public function create()
     {
-        $customers = Customer::all();
+        // 🎯 ดึง total_people มาด้วย และแก้ไขชื่อให้มี (รวม X คน) ต่อท้าย เพื่อให้หน้าเว็บนำไปใช้ได้ง่ายๆ
+        $customers = Customer::select('id', 'company_name', 'contact_name', 'type', 'total_people')->get()->map(function ($customer) {
+            $customer->company_name = $customer->company_name . ' (รวม ' . ($customer->total_people ?? 1) . ' คน)';
+            return $customer;
+        });
+        
         $courses = Course::all(); // ดึงรายชื่อคอร์สไปให้เลือกใน Dropdown
         return view('deals.create', compact('customers', 'courses'));
     }
@@ -102,6 +136,7 @@ class SalesDealController extends Controller
         // ดักจับ: หากในฟอร์มไม่มีการเลือกวันที่มา ให้ดึงวันที่ปัจจุบัน (Y-m-d) ไปใช้งานเพื่อไม่ให้เกิด Errorในฐานข้อมูล
         $dealDate = $request->deal_date ?: now()->format('Y-m-d');
 
+        // 💡 แก้ไข: นำฟิลด์ total_revenue ออก เพื่อไม่ให้เกิด Error: Column not found 1054 เนื่องจากใช้ระบบรวมยอดจากตารางย่อยแทน
         $deal = SalesDeal::create([
             'user_id'       => $userId, 
             'customer_id'   => $request->customer_id,
@@ -114,7 +149,6 @@ class SalesDealController extends Controller
             'progress'      => $request->progress,
             'receipt_no'    => $request->receipt_no,
             'updated_note'  => $request->updated_note,
-            'total_revenue' => 0, // กำหนดค่ายอดรวมเริ่มต้นเป็น 0 ก่อน (เดี๋ยวระบบจะบวกเพิ่มตอนใส่คอร์ส)
         ]);
 
         // เปลี่ยน Redirect ให้เด้งไปที่หน้าจัดการคอร์ส (Items) ของดีลที่เพิ่งสร้างทันที
@@ -125,11 +159,33 @@ class SalesDealController extends Controller
     public function edit(SalesDeal $deal)
     {
         // 🟢 โหลดข้อมูลประวัติและชื่อคนที่อัปเดตแนบมาด้วย
-        $deal->load(['logs.user']);
+        $deal->load(['logs.user', 'customer']);
 
-        $customers = Customer::all();
-        // ส่งตัวแปรเดิมไปใช้งานที่ View อย่างครบถ้วนตามหลัก Route Model Binding
-        return view('deals.edit', compact('deal', 'customers'));
+        // 🎯 ดึงข้อมูลลูกค้ามาต่อท้ายด้วยจำนวนคน เพื่อให้เลือกในหน้าแก้ไขได้ง่ายๆ เช่นกัน
+        $customers = Customer::all()->map(function ($customer) {
+            $customer->company_name = $customer->company_name . ' (รวม ' . ($customer->total_people ?? 1) . ' คน)';
+            return $customer;
+        });
+
+        // 🟢 ดึงข้อมูลและตัดแบ่งรายชื่อผู้เข้าร่วมเพิ่มเติมจากคอลัมน์ note ของลูกค้า
+        $additional_names = [];
+        if ($deal->customer && !empty($deal->customer->note)) {
+            // ค้นหาข้อความส่วนที่เป็นรายชื่อลูกค้าเพิ่มเติมด้วย Regular Expression
+            if (preg_match('/\[รายชื่อผู้เรียนร่วมเพิ่มเติม\]:\s*(.*?)(?=\[|$)/s', $deal->customer->note, $matches)) {
+                $raw_list = $matches[1];
+                // แยกด้วยบรรทัดใหม่ หรือ เครื่องหมายขีด (-) เพื่อเอาเฉพาะรายชื่อ
+                $lines = preg_split('/[\r\n]+/', $raw_list);
+                foreach ($lines as $line) {
+                    $trimmed = trim(preg_replace('/^\s*-\s*/', '', $line));
+                    if (!empty($trimmed)) {
+                        $additional_names[] = $trimmed;
+                    }
+                }
+            }
+        }
+
+        // ส่งตัวแปรเดิมไปใช้งานที่ View อย่างครบถ้วนตามหลัก Route Model Binding พร้อมส่ง $additional_names ไปวนลูปเพิ่ม
+        return view('deals.edit', compact('deal', 'customers', 'additional_names'));
     }
 
     // อัปเดตข้อมูลดีลงานขายลงฐานข้อมูล
@@ -151,7 +207,7 @@ class SalesDealController extends Controller
         $dealDate = $request->deal_date ?: $deal->deal_date;
         $customerId = $request->customer_id ?: $deal->customer_id;
 
-        // อัปเดตข้อมูลในดีล (ผสมผสานฟิลด์จากฟอร์มจัดการสถานะใหม่เข้าไปทั้งหมดอย่างสมบูรณ์)
+        // 💡 แก้ไข: เอาฟิลด์คำว่า 'note' ออก เพราะตารางนี้ใช้คอลัมน์ 'updated_note' ในการเก็บข้อมูลบันทึกข้อความย่อยเท่านั้นป้องกัน Error 1054
         $deal->update([
             'customer_id'   => $customerId,
             'deal_date'     => $dealDate,
@@ -160,7 +216,6 @@ class SalesDealController extends Controller
             'status'        => $request->status,
             'progress'      => $request->progress ?? $deal->progress,
             'receipt_no'    => $request->receipt_no ?? $deal->receipt_no,
-            'note'          => $request->updated_note ?? $request->note ?? $deal->note, 
             'updated_note'  => $request->updated_note ?? $request->note ?? $deal->updated_note,
         ]);
 
@@ -299,7 +354,22 @@ class SalesDealController extends Controller
         $courses = Course::all();
         $courseOptions = $courses; // เพิ่มตัวแปรนี้เพื่อแก้ปัญหา Undefined variable ในหน้า View
 
-        return view('deals.items', compact('deal', 'courses', 'courseOptions'));
+        // 🟢 เพิ่มส่วนตัดแบ่งรายชื่อผู้เข้าร่วมเพิ่มเติมจากคอลัมน์ note ของลูกค้าเพื่อส่งไปหน้าจัดการไอเท็ม
+        $additional_names = [];
+        if ($deal->customer && !empty($deal->customer->note)) {
+            if (preg_match('/\[รายชื่อผู้เรียนร่วมเพิ่มเติม\]:\s*(.*?)(?=\[|$)/s', $deal->customer->note, $matches)) {
+                $raw_list = $matches[1];
+                $lines = preg_split('/[\r\n]+/', $raw_list);
+                foreach ($lines as $line) {
+                    $trimmed = trim(preg_replace('/^\s*-\s*/', '', $line));
+                    if (!empty($trimmed)) {
+                        $additional_names[] = $trimmed;
+                    }
+                }
+            }
+        }
+
+        return view('deals.items', compact('deal', 'courses', 'courseOptions', 'additional_names'));
     }
 
     // บันทึกรายการคอร์สย่อยเข้าฐานข้อมูล และคำนวณเงินรวมอัตโนมัติ
@@ -338,9 +408,14 @@ class SalesDealController extends Controller
         // คำนวณยอดรวมคอร์สย่อยทั้งหมด แล้วนำไปอัปเดตลงดีลหลัก (sales_deals)
         $mainDeal = SalesDeal::findOrFail($id);
         $grandTotalItems = DealItem::where('sales_deal_id', $id)->sum('total_revenue');
-        $mainDeal->update([
-            'total_revenue' => $grandTotalItems
-        ]);
+        
+        // 💡 อัปเดตยอดรวมในดีลหลักผ่านตัวแปร (หากในอนาคตต้องการอัปเดตยอดรวมไว้แสดงผล)
+        // โดยไม่ขัดกับเงื่อนไขเดิมของระบบ
+        if (\Schema::hasColumn('sales_deals', 'total_revenue')) {
+            $mainDeal->update([
+                'total_revenue' => $grandTotalItems
+            ]);
+        }
 
         return redirect()->route('deals.items', $id)->with('success', 'เพิ่มรายการคอร์สเรียนเข้าไปในดีลนี้และอัปเดตยอดเงินรวมเรียบร้อยแล้ว!');
     }
@@ -356,7 +431,22 @@ class SalesDealController extends Controller
         $courses = Course::all();
         $courseOptions = $courses; // เพิ่มตัวแปรนี้เพื่อแก้ปัญหา Undefined variable ในหน้า View
 
-        return view('deals.items', compact('deal', 'courses', 'courseOptions'));
+        // 🟢 เพิ่มส่วนตัดแบ่งรายชื่อผู้เข้าร่วมเพิ่มเติมจากคอลัมน์ note ของลูกค้าเพื่อส่งไปหน้าจัดการไอเท็ม
+        $additional_names = [];
+        if ($deal->customer && !empty($deal->customer->note)) {
+            if (preg_match('/\[รายชื่อผู้เรียนร่วมเพิ่มเติม\]:\s*(.*?)(?=\[|$)/s', $deal->customer->note, $matches)) {
+                $raw_list = $matches[1];
+                $lines = preg_split('/[\r\n]+/', $raw_list);
+                foreach ($lines as $line) {
+                    $trimmed = trim(preg_replace('/^\s*-\s*/', '', $line));
+                    if (!empty($trimmed)) {
+                        $additional_names[] = $trimmed;
+                    }
+                }
+            }
+        }
+
+        return view('deals.items', compact('deal', 'courses', 'courseOptions', 'additional_names'));
     }
 
     /**
@@ -372,9 +462,12 @@ class SalesDealController extends Controller
         // หลังลบเสร็จ คำนวณยอดเงินรวมของไอเท็มที่เหลืออยู่ใหม่ทั้งหมด แล้วนำไปอัปเดตลงดีลหลัก
         $mainDeal = SalesDeal::findOrFail($dealId);
         $grandTotalItems = DealItem::where('sales_deal_id', $dealId)->sum('total_revenue');
-        $mainDeal->update([
-            'total_revenue' => $grandTotalItems
-        ]);
+        
+        if (\Schema::hasColumn('sales_deals', 'total_revenue')) {
+            $mainDeal->update([
+                'total_revenue' => $grandTotalItems
+            ]);
+        }
 
         return redirect()->route('deals.items', $dealId)->with('success', 'ลบรายการคอร์สเรียนออกจากดีลและคำนวณยอดเงินรวมใหม่เรียบร้อยแล้ว!');
     }
@@ -386,5 +479,14 @@ class SalesDealController extends Controller
     {
         $deal = SalesDeal::with(['customer', 'dealItems.course'])->findOrFail($id);
         return view('deals.quotation', compact('deal'));
+    }
+
+    /**
+     * ➕ ส่วนที่เพิ่มใหม่: ฟังก์ชันสำหรับบันทึก Session เมื่อ User กดปุ่มรับทราบแจ้งเตือน
+     */
+    public function dismissAlert()
+    {
+        session(['deal_alert_dismissed' => true]);
+        return response()->json(['success' => true]);
     }
 }
