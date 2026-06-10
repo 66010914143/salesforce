@@ -10,8 +10,37 @@
         body { font-family: 'Sarabun', sans-serif; }
         @media print {
             .no-print { display: none !important; }
-            body { background-color: #ffffff; }
-            .print-border { border: 1px solid #cbd5e1 !important; }
+            body { background-color: #ffffff; padding: 0; margin: 0; }
+            
+            /* 1. ตั้งค่าระยะขอบกระดาษพิมพ์เพื่อกู้คืนพื้นที่แนวตั้ง */
+            @page {
+                size: A4 portrait;
+                margin: 12mm 15mm 12mm 15mm;
+            }
+            
+            /* 2. ปรับแต่งโครงสร้างหลักและเพิ่มความห่างจากขอบด้านข้างกล่องให้สวยงามไม่ชิดเกินไป */
+            .print-border { 
+                border: 1px solid #cbd5e1 !important; 
+                padding: 2rem !important; 
+                box-shadow: none !important;
+                min-height: auto !important;
+            }
+
+            /* 3. กระชับระยะห่าง (Margin) ระหว่างกล่องข้อความให้พอดีในหน้าเดียว */
+            .mb-8 { margin-bottom: 1.25rem !important; }
+            .mb-16 { margin-bottom: 2rem !important; }
+            .pb-6 { padding-bottom: 0.75rem !important; }
+
+            /* 4. ลดความสูงของแถวในตารางให้กระชับและอ่านง่าย */
+            table th, table td {
+                padding: 6px 8px !important;
+            }
+
+            /* 5. ป้องกันองค์ประกอบสำคัญถูกตัดแบ่งครึ่งหน้ากระดาษ */
+            tr, .grid, .flex {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
         }
     </style>
 </head>
@@ -54,7 +83,13 @@
 
         <div class="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-lg border border-slate-100 mb-8">
             <div>
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">ข้อมูลลูกค้าและบริษัท / Customer Info</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    @if(in_array(strtolower($deal->customer->type ?? ''), ['person', 'individual']))
+                        ข้อมูลลูกค้า / Customer Info
+                    @else
+                        ข้อมูลลูกค้าและบริษัท / Customer Info
+                    @endif
+                </span>
                 <h3 class="text-base font-bold text-slate-800">{{ $deal->customer->company_name }}</h3>
                 <p class="text-xs text-slate-500 mt-1 leading-relaxed">
                     หมวดหมู่ธุรกิจ: {{ $deal->category ?? 'ทั่วไป' }}<br>
@@ -121,8 +156,6 @@
                         <span>฿{{ number_format($grandTotal, 2) }}</span>
                     </div>
                     <div class="flex justify-between text-slate-500">
-                        <span>ภาษีมูลค่าเพิ่ม / VAT (0%):</span>
-                        <span>฿0.00</span>
                     </div>
                     <div class="flex justify-between text-base font-black text-slate-900 border-t-2 border-slate-200 pt-2 mt-2">
                         <span>ยอดรวมทั้งสิ้น / Grand Total:</span>

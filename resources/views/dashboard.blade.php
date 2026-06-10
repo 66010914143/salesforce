@@ -89,8 +89,8 @@
     
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h3 class="text-lg font-bold text-gray-800">สวัสดีทีมฝ่ายขาย ยินดีต้อนรับสู่ระบบสรุปยอดเงิน</h3>
-            <p class="text-gray-500 text-sm mt-1">นี่คือภาพรวมข้อมูลยอดขายและสถานะดีลงานทั้งหมดที่บันทึกอยู่ในระบบปัจจุบัน</p>
+            <h1 class="text-lg font-bold text-gray-800">ระบบสรุปยอดเงิน</h1>
+            <p class="text-gray-500 text-sm mt-1">นี่คือภาพรวมข้อมูลยอดขายและสถานะทั้งหมด</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
             <form action="{{ url()->current() }}" method="GET" id="fiscalYearForm" class="flex flex-wrap items-center gap-2 bg-slate-50 border border-gray-200 px-3 py-1.5 rounded-lg shadow-2xs">
@@ -155,29 +155,13 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col justify-between">
-            <div class="p-6 flex items-start justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-400 uppercase tracking-wider">ปิดการขายแล้ว (Closed Sale)</p>
-                    <h4 class="text-2xl font-bold text-emerald-600 mt-2">฿{{ number_format($totalClosed, 2) }}</h4>
-                </div>
-                <div class="p-4 bg-emerald-50 text-emerald-500 rounded-lg text-2xl">
-                    <i class="fa-solid fa-circle-dollar-to-slot"></i>
-                </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-400 uppercase tracking-wider">ปิดการขายแล้ว (Closed Sale)</p>
+                <h4 class="text-2xl font-bold text-emerald-600 mt-2">฿{{ number_format($totalClosed, 2) }}</h4>
             </div>
-            <div class="bg-slate-50/70 border-t border-gray-100 px-4 py-2.5 space-y-1 text-xs">
-                <div class="flex justify-between text-slate-500">
-                    <span>ยอดก่อนภาษี (Net Amount):</span>
-                    <span class="font-mono font-medium">฿{{ number_format($totalNet, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-slate-500">
-                    <span>ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
-                    <span class="font-mono font-medium">฿{{ number_format($totalVat, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-slate-800 font-bold pt-0.5 border-t border-dashed border-gray-200">
-                    <span>ยอดรวมสุทธิ (Gross Amount):</span>
-                    <span class="font-mono text-emerald-600">฿{{ number_format($totalClosed, 2) }}</span>
-                </div>
+            <div class="p-4 bg-emerald-50 text-emerald-500 rounded-lg text-2xl">
+                <i class="fa-solid fa-circle-dollar-to-slot"></i>
             </div>
         </div>
 

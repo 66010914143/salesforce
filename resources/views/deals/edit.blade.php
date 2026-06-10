@@ -6,7 +6,11 @@
 <div class="max-w-4xl mx-auto space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-200 gap-4">
         <div>
-            <h3 class="text-lg font-bold text-gray-800">📝 อัปเดตสถานะการขาย: {{ $deal->customer->company_name ?? 'ไม่ระบุชื่อบริษัท' }}</h3>
+            @if(isset($deal->customer) && $deal->customer->type === 'corporate')
+                <h3 class="text-lg font-bold text-gray-800">🏢 อัปเดตสถานะการขาย บริษัท: {{ $deal->customer->company_name ?? 'ไม่ระบุชื่อบริษัท' }}</h3>
+            @else
+                <h3 class="text-lg font-bold text-gray-800">👤 อัปเดตสถานะการขาย ลูกค้า: {{ $deal->customer->company_name ?? $deal->customer->name ?? 'ไม่ระบุชื่อลูกค้า' }}</h3>
+            @endif
             <p class="text-gray-500 text-sm mt-1">ปรับปรุงสถานะการติดตามงาน และบันทึกความคืบหน้าล่าสุด</p>
         </div>
         <a href="{{ route('deals.index') }}" class="inline-flex items-center justify-center text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
@@ -21,14 +25,89 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">ลูกค้า / บริษัท <span class="text-red-500">*</span></label>
-                    <select name="customer_id" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50" required>
-                        @foreach($customers as $customer)
-                            <option value="{{ $customer->id }}" {{ $deal->customer_id == $customer->id ? 'selected' : '' }}>
-                                {{ $customer->company_name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-gray-700">
+                            @if(isset($deal->customer) && $deal->customer->type === 'corporate')
+                                บริษัท <span class="text-red-500">*</span>
+                            @else
+                                ลูกค้า <span class="text-red-500">*</span>
+                            @endif
+                        </label>
+
+                        @if(isset($deal->customer) && $deal->customer->type !== 'corporate')
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click.prevent="open = !open" type="button" class="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-colors focus:outline-none shadow-sm cursor-pointer">
+                                    📋 รายชื่อ ({{ $deal->customer->total_people ?? ($deal->customer->students ? $deal->customer->students->count() + 1 : 1) }} คน)
+                                    <svg class="h-3 w-3 text-indigo-400 transition-transform" :class="{'rotate-180': open}" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                
+                                <div x-show="open" 
+                                     @click.away="open = false"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 mt-1.5 w-72 rounded-xl bg-white p-2 shadow-xl ring-1 ring-black/5 z-50 border border-gray-200" 
+                                     style="display: none;">
+                                    
+                                    <div class="p-3">
+                                        <p class="text-xs text-gray-500 mb-2 border-b pb-1">รายชื่อผู้เรียนทั้งหมดในดีลนี้</p>
+                                        <ul class="text-sm space-y-2 text-gray-700">
+                                            @php $nameIndex = 1; @endphp
+                                            
+                                            <li class="text-indigo-600 font-medium flex items-start gap-2">
+                                                <i class="fa-solid fa-user-check text-xs mt-1"></i> 
+                                                <span class="leading-tight">
+                                                    {{ $nameIndex++ }}. {{ $deal->customer->name ?? $deal->customer->company_name ?? 'ไม่ระบุ' }} (หลัก)
+                                                    @if(!empty($deal->customer->phone) || !empty($deal->customer->email))
+                                                        <span class="text-xs font-normal text-indigo-500">
+                                                            <br>(โทร: {{ $deal->customer->phone ?? '-' }}, อีเมล: {{ $deal->customer->email ?? '-' }})
+                                                        </span>
+                                                    @endif
+                                                </span>
+                                            </li>
+                                            
+                                            @if(isset($deal->customer->students) && $deal->customer->students->count() > 0)
+                                                @foreach($deal->customer->students as $student)
+                                                    <li class="flex items-start gap-2 text-gray-600">
+                                                        <i class="fa-solid fa-user text-xs text-gray-400 mt-1"></i>
+                                                        <span class="leading-tight">
+                                                            {{ $nameIndex++ }}. {{ $student->name ?? $student->full_name ?? 'ไม่ระบุชื่อ' }}
+                                                            @if(!empty($student->phone) || !empty($student->email))
+                                                                <span class="text-xs text-gray-500">
+                                                                    <br>(โทร: {{ $student->phone ?? '-' }}, อีเมล: {{ $student->email ?? '-' }})
+                                                                </span>
+                                                            @endif
+                                                        </span>
+                                                    </li>
+                                                @endforeach
+                                            @endif
+                                            
+                                            @if(isset($additional_names) && count($additional_names) > 0)
+                                                @foreach($additional_names as $name)
+                                                    <li class="flex items-start gap-2 text-gray-600">
+                                                        <i class="fa-solid fa-user text-xs text-gray-400 mt-1"></i>
+                                                        <span class="leading-tight">{{ $nameIndex++ }}. {{ $name }}</span>
+                                                    </li>
+                                                @endforeach
+                                            @endif
+                                        </ul>
+                                    </div>
+                                    </div>
+                            </div>
+                        @endif
+                    </div>
+                    
+                    <div class="relative">
+                        <div class="w-full rounded-lg border border-gray-300 pl-4 pr-36 py-2.5 text-sm bg-gray-100 text-gray-600 select-none cursor-not-allowed">
+                            {{ $deal->customer->company_name ?? $deal->customer->name }}
+                        </div>
+                        <input type="hidden" name="customer_id" value="{{ $deal->customer_id }}">
+                    </div>
                 </div>
 
                 <div>
@@ -176,11 +255,10 @@
             @endif
         </div>
     </div>
-    </div>
+</div>
 
 <script>
     function highlightRadio(element) {
-        // รีเซ็ตคลาสของทุกปุ่มให้กลับเป็นสถานะปกติก่อน
         document.querySelectorAll('input[name="status"]').forEach(el => {
             const parent = el.closest('label');
             parent.className = 'relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none border-gray-200 hover:bg-gray-50 transition-all';
@@ -191,7 +269,6 @@
             }
         });
 
-        // ตั้งค่าสีไฮไลท์ตามสถานะที่ถูกเลือก
         const parent = element.closest('label');
         const val = element.value;
         let colorClass = 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/30';
@@ -202,7 +279,6 @@
             colorClass = 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/30';
         }
 
-        // เพิ่มคลาสสีที่เลือกและแสดงไอคอนเช็คถูก
         parent.className = `relative flex cursor-pointer rounded-lg border p-4 shadow-sm focus:outline-none transition-all ${colorClass}`;
         const icon = parent.querySelector('.check-icon');
         if(icon) {

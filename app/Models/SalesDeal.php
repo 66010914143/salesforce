@@ -21,8 +21,15 @@ class SalesDeal extends Model
         'status',
         'progress',
         'receipt_no',
+        'note',          // 🟢 เพิ่มฟิลด์นี้เพื่อไม่ให้ติด Error ตอน Controller สั่งอัปเดต
         'updated_note',
-        'discount'
+        'discount',
+        'total_revenue'  // 🟢 เพิ่มฟิลด์นี้เพื่อให้ Controller เซฟยอดรวมได้
+    ];
+
+    // 🟢 กำหนดการแปลงค่าวันที่ (Casting) เพื่อให้ดึงไปแสดงผลหรือจัดการได้ง่ายขึ้น
+    protected $casts = [
+        'deal_date' => 'date',
     ];
 
     // บอกว่าดีลนี้เป็นของเซลส์คนไหน

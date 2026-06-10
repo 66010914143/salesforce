@@ -15,7 +15,86 @@
                 <a href="{{ route('sales_deals.index') }}" class="text-sm text-slate-500 hover:text-slate-800">⬅️ กลับหน้าตารางรวม</a>
             </div>
         </div>
-        <h3 class="text-lg font-bold text-gray-900">🏢 บริษัท: {{ $deal->customer->company_name }}</h3>
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                @if(isset($deal->customer) && $deal->customer->type === 'corporate')
+                    <h3 class="text-lg font-bold text-gray-900">🏢 บริษัท: {{ $deal->customer->company_name }}</h3>
+                @else
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h3 class="text-lg font-bold text-gray-900">👤 ลูกค้า: {{ $deal->customer->company_name ?? $deal->customer->name }}</h3>
+                        
+                        <div class="relative inline-block text-left" x-data="{ open: false }" @click.away="open = false">
+                            <button @click.prevent="open = !open" type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors focus:outline-none shadow-sm cursor-pointer">
+                                📋 ดูรายชื่อทั้งหมด ({{ $deal->customer->total_people ?? (isset($deal->customer->students) ? $deal->customer->students->count() + 1 : 1) }} คน)
+                                <svg class="h-4 w-4 text-slate-400 transition-transform" :class="{'rotate-180': open}" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            <div x-show="open" 
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute left-0 mt-1.5 w-72 origin-top-left rounded-xl bg-white p-2 shadow-xl ring-1 ring-black/5 z-50 border border-gray-100" 
+                                 style="display: none;">
+                                
+                                <div class="px-2 py-1.5">
+                                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 mb-2 pb-1.5">
+                                        รายชื่อผู้เรียนในการขายนี้
+                                    </div>
+                                    <ul class="space-y-1 max-h-56 overflow-y-auto pr-1">
+                                        @php $nameIndex = 1; @endphp
+                                        
+                                        {{-- คนที่ 1 ปรับให้แสดงผลต่อกันในบรรทัดเดียวเหมือนคนอื่น ๆ แล้ว --}}
+                                        <li class="flex items-start gap-2 text-gray-600 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                                            <i class="fa-solid fa-user text-[10px] text-gray-400 mt-1"></i> 
+                                            <span class="leading-tight text-xs">
+                                                <span class="font-medium">
+                                                    {{ $nameIndex++ }}. {{ $deal->customer->name ?? $deal->customer->company_name ?? 'ไม่ระบุ' }}
+                                                    @if(!empty($deal->customer->phone) || !empty($deal->customer->email))
+                                                        (โทร: {{ $deal->customer->phone ?? '-' }}, อีเมล: {{ $deal->customer->email ?? '-' }})
+                                                    @endif
+                                                </span>
+                                            </span>
+                                        </li>
+                                        
+                                        @if(isset($deal->customer->students) && $deal->customer->students->count() > 0)
+                                            @foreach($deal->customer->students as $student)
+                                                <li class="flex items-start gap-2 text-gray-600 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                                                    <i class="fa-solid fa-user text-[10px] text-gray-400 mt-1"></i>
+                                                    <span class="leading-tight text-xs">
+                                                        <span class="font-medium">
+                                                            {{ $nameIndex++ }}. {{ $student->name ?? $student->full_name ?? 'ไม่ระบุชื่อ' }}
+                                                            @if(!empty($student->phone) || !empty($student->email))
+                                                                (โทร: {{ $student->phone ?? '-' }}, อีเมล: {{ $student->email ?? '-' }})
+                                                            @endif
+                                                        </span>
+                                                    </span>
+                                                </li>
+                                            @endforeach
+                                        @endif
+                                        
+                                        @if(isset($additional_names) && count($additional_names) > 0)
+                                            @foreach($additional_names as $name)
+                                                <li class="flex items-start gap-2 text-gray-600 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                                                    <i class="fa-solid fa-user text-[10px] text-gray-400 mt-1"></i>
+                                                    <span class="leading-tight text-xs font-medium">{{ $nameIndex++ }}. {{ $name }}</span>
+                                                </li>
+                                            @endforeach
+                                        @endif
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         <p class="text-gray-500 text-sm mt-1">
             วันที่: {{ \Carbon\Carbon::parse($deal->deal_date)->format('d/m/Y') }} | 
             หมวดหมู่: <span class="font-medium text-slate-700">{{ $deal->category }}</span> | 
@@ -52,7 +131,15 @@
 
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">จำนวนคน (Person)</label>
-                    <input type="number" name="total_person" id="total_person" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-slate-500" placeholder="0" min="1" required>
+                    @if(isset($deal->customer) && $deal->customer->type === 'individual')
+                        <input type="number" name="total_person" id="total_person" value="{{ $deal->customer->total_people ?? 1 }}" readonly 
+                               class="w-full rounded-lg border border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed px-3 py-2 text-sm focus:outline-none">
+                        <p class="text-xs text-indigo-500 mt-1">
+                            <i class="fa-solid fa-circle-info"></i> ดึงจำนวนคนอัตโนมัติตามรายชื่อผู้เรียน
+                        </p>
+                    @else
+                        <input type="number" name="total_person" id="total_person" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-slate-500 bg-white" placeholder="0" min="1" value="{{ $deal->customer->total_people ?? 1 }}" required>
+                    @endif
                 </div>
 
                 <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
@@ -94,7 +181,6 @@
                             @php $grandTotal = 0; @endphp
                             @forelse($deal->dealItems as $item)
                             @php 
-                                // ป้องกันชื่อคอลัมน์ในฐานข้อมูลสับสน ดึงค่าใดค่าหนึ่งที่ได้มาคำนวณจริงหน้าโรงงาน
                                 $itemDiscount = $item->discount ?? $item->discount_per_person ?? 0;
                                 $itemTotal = ($item->price_per_person - $itemDiscount) * $item->total_person;
                                 if($itemTotal < 0) $itemTotal = 0;
@@ -225,12 +311,10 @@
             const discount = parseFloat(discountInput.value) || 0;
             const person = parseInt(personInput.value) || 0;
             
-            // คัดลอกค่าส่วนลดไปยังอินพุตสำรองเพื่อให้ส่งค่าไปทั้งคู่ ป้องกัน Controller ตรวจจับพลาดชื่อฟิลด์
             if(hiddenDiscountAlt) {
                 hiddenDiscountAlt.value = discount;
             }
 
-            // คำนวณ (ราคา - ส่วนลด) * จำนวนคน
             let total = (price - discount) * person;
             if (total < 0) total = 0; 
 
@@ -240,6 +324,8 @@
         priceInput.addEventListener('input', calculateLiveTotal);
         discountInput.addEventListener('input', calculateLiveTotal);
         personInput.addEventListener('input', calculateLiveTotal);
+
+        calculateLiveTotal();
     });
 </script>
 @endsection

@@ -3,6 +3,41 @@
 @section('page_title', 'บันทึกการขายงานใหม่')
 
 @section('content')
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<style>
+    /* ปรับแต่งหน้าตา Tom Select ให้เข้ากับ Tailwind CSS ของฟอร์มเดิม */
+    .ts-control {
+        border-radius: 0.5rem !important;
+        border-color: #d1d5db !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.25rem !important;
+        box-shadow: none !important;
+        background-color: #fff !important;
+    }
+    .ts-wrapper.focus .ts-control {
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+    }
+    .ts-dropdown {
+        border-radius: 0.5rem !important;
+        font-size: 0.875rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    }
+    /* เพิ่มเติมสไตล์ Badge สรุปจำนวนคนในปุ่มเลือก */
+    .badge-member-count {
+        background-color: #e0e7ff;
+        color: #4f46e5;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+</style>
+
 <div class="max-w-3xl mx-auto space-y-6">
 
     <div>
@@ -34,12 +69,10 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">เลือกบริษัทคู่ค้า / ลูกค้า <span class="text-rose-500">*</span></label>
-                    <select name="customer_id" id="customer_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
-                        <option value="">-- กรุณาเลือกบริษัทลูกค้า --</option>
-                        @foreach($customers as $customer)
-                            <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->company_name }}</option>
-                        @endforeach
+                    <label for="customer_type" class="block text-sm font-medium text-gray-700 mb-1">ประเภทลูกค้า <span class="text-rose-500">*</span></label>
+                    <select id="customer_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="corporate">ลูกค้าองค์กร / หน่วยงาน</option>
+                        <option value="individual">ลูกค้าบุคคล</option>
                     </select>
                 </div>
 
@@ -47,11 +80,43 @@
                     <label for="deal_date" class="block text-sm font-medium text-gray-700 mb-1">วันที่บันทึกการขาย <span class="text-rose-500">*</span></label>
                     <input type="date" name="deal_date" id="deal_date" required value="{{ old('deal_date', date('Y-m-d')) }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                 </div>
+
+                <div class="md:col-span-2">
+                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">เลือกบริษัทคู่ค้า / ลูกค้า <span class="text-rose-500">*</span></label>
+                    <select name="customer_id" id="customer_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="">-- พิมพ์ค้นหาหรือเลือกรายชื่อ --</option>
+                        @foreach($customers as $customer)
+                            @php
+                                // แอบดึงข้อมูลรายชื่อย่อยออกมาจากก้อนตัวแปรของระบบเดิมอย่างปลอดภัย
+                                $subMembers = collect([]);
+                                if (isset($customer->subCustomers)) { $subMembers = $customer->subCustomers; }
+                                elseif (isset($customer->children)) { $subMembers = $customer->children; }
+                                elseif (isset($customer->sub_customers)) { $subMembers = $customer->sub_customers; }
+                                elseif (isset($customer->members)) { $subMembers = $customer->members; }
+                                
+                                $cleanName = $customer->type === 'individual' ? ($customer->name ?? $customer->company_name) : $customer->company_name;
+                            @endphp
+                            <option value="{{ $customer->id }}" data-type="{{ $customer->type ?? 'corporate' }}" data-clean-name="{{ $cleanName }}" data-sub-members="{{ json_encode($subMembers) }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
+                                {{ $cleanName }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <div id="sub_members_card_box" class="mt-2 hidden">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 shadow-inner">
+                            <div class="font-bold text-slate-700 mb-2 flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-address-book text-indigo-500"></i> รายชื่อผู้เรียนร่วมเพิ่มเติม:
+                            </div>
+                            <ul id="sub_members_list_render" class="space-y-1.5 pl-1">
+                                </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">สถานะการขาย (Status) <span class="text-rose-500">*</span></label>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">สถานะการขาย <span class="text-rose-500">*</span></label>
                     <select name="status" id="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
                         <option value="Forecast" {{ old('status') == 'Forecast' ? 'selected' : '' }}>Forecast (ประมาณการยอดขาย)</option>
                         <option value="Following" {{ old('status') == 'Following' ? 'selected' : '' }}>Following (กำลังติดตามงาน)</option>
@@ -61,49 +126,49 @@
                 </div>
 
                 <div>
-                    <label for="progress" class="block text-sm font-medium text-gray-700 mb-1">Progress (สถานะย่อย)</label>
-                    <input type="text" name="progress" id="progress" list="progress_list" value="{{ old('progress') }}" placeholder="ส่งใบเสนอราคาแล้ว / รอสัญญา" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                    <datalist id="progress_list">
-                        <option value="ส่งใบเสนอราคาแล้ว (Waiting Quoted)">
-                        <option value="กำลังพิจารณาสัญญา (Reviewing Contract)">
-                        <option value="รอโอนเงินมัดจำ">
-                        <option value="ติดตามงานครั้งที่ 1">
-                    </datalist>
+                    <label for="progress" class="block text-sm font-medium text-gray-700 mb-1">สถานะย่อย</label>
+                    <select name="progress" id="progress" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="">-- เลือกสถานะย่อย --</option>
+                        <option value="ส่งใบเสนอราคาแล้ว (Waiting Quoted)" {{ old('progress') == 'ส่งใบเสนอราคาแล้ว (Waiting Quoted)' ? 'selected' : '' }}>ส่งใบเสนอราคาแล้ว (Waiting Quoted)</option>
+                        <option value="กำลังพิจารณาสัญญา (Reviewing Contract)" {{ old('progress') == 'กำลังพิจารณาสัญญา (Reviewing Contract)' ? 'selected' : '' }}>กำลังพิจารณาสัญญา (Reviewing Contract)</option>
+                        <option value="รอโอนเงินมัดจำ" {{ old('progress') == 'รอโอนเงินมัดจำ' ? 'selected' : '' }}>รอโอนเงินมัดจำ</option>
+                        <option value="ติดตามงานครั้งที่ 1" {{ old('progress') == 'ติดตามงานครั้งที่ 1' ? 'selected' : '' }}>ติดตามงานครั้งที่ 1</option>
+                    </select>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                    <label for="group" class="block text-sm font-medium text-gray-700 mb-1">Group</label>
-                    <input type="text" name="group" id="group" list="group_list" value="{{ old('group') }}" placeholder="เช่น Corporate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                    <datalist id="group_list">
-                        <option value="Corporate">
-                        <option value="Person">
-                        <option value="Government">
-                    </datalist>
+                    <label for="group" class="block text-sm font-medium text-gray-700 mb-1">กลุ่มลูกค้า</label>
+                    <select name="group" id="group" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="">-- เลือก --</option>
+                        <option value="Corporate" {{ old('group') == 'Corporate' ? 'selected' : '' }}>Corporate</option>
+                        <option value="Person" {{ old('group') == 'Person' ? 'selected' : '' }}>Person</option>
+                        <option value="Government" {{ old('group') == 'Government' ? 'selected' : '' }}>Government</option>
+                    </select>
                 </div>
                 <div>
-                    <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <input type="text" name="category" id="category" list="category_list" value="{{ old('category') }}" placeholder="เช่น SME" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                    <datalist id="category_list">
-                        <option value="SME">
-                        <option value="Public">
-                        <option value="In-house">
-                    </datalist>
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
+                    <select name="category" id="category" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="">-- เลือก --</option>
+                        <option value="SME" {{ old('category') == 'SME' ? 'selected' : '' }}>SME</option>
+                        <option value="Public" {{ old('category') == 'Public' ? 'selected' : '' }}>Public</option>
+                        <option value="In-house" {{ old('category') == 'In-house' ? 'selected' : '' }}>In-house</option>
+                    </select>
                 </div>
                 <div>
-                    <label for="tools" class="block text-sm font-medium text-gray-700 mb-1">Tools</label>
-                    <input type="text" name="tools" id="tools" list="tools_list" value="{{ old('tools') }}" placeholder="เช่น Sales" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                    <datalist id="tools_list">
-                        <option value="Sales">
-                        <option value="Line OA">
-                        <option value="Facebook Ads">
-                        <option value="Cold Call">
-                        <option value="Inbound">
-                    </datalist>
+                    <label for="tools" class="block text-sm font-medium text-gray-700 mb-1">ช่องทาง</label>
+                    <select name="tools" id="tools" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                        <option value="">-- เลือก --</option>
+                        <option value="Sales" {{ old('tools') == 'Sales' ? 'selected' : '' }}>Sales</option>
+                        <option value="Line OA" {{ old('tools') == 'Line OA' ? 'selected' : '' }}>Line OA</option>
+                        <option value="Facebook Ads" {{ old('tools') == 'Facebook Ads' ? 'selected' : '' }}>Facebook Ads</option>
+                        <option value="Cold Call" {{ old('tools') == 'Cold Call' ? 'selected' : '' }}>Cold Call</option>
+                        <option value="Inbound" {{ old('tools') == 'Inbound' ? 'selected' : '' }}>Inbound</option>
+                    </select>
                 </div>
                 <div>
-                    <label for="promotion" class="block text-sm font-medium text-gray-700 mb-1">Promotion</label>
+                    <label for="promotion" class="block text-sm font-medium text-gray-700 mb-1">โปรโมชัน</label>
                     <input type="text" name="promotion" id="promotion" value="{{ old('promotion') }}" placeholder="โปรโมชัน / ส่วนลดพิเศษ" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                 </div>
             </div>
@@ -112,6 +177,10 @@
                 <div>
                     <label for="receipt_no" class="block text-sm font-medium text-gray-700 mb-1">เลขที่ใบเสร็จ</label>
                     <input type="text" name="receipt_no" id="receipt_no" value="{{ old('receipt_no') }}" placeholder="ระบุเลขที่ใบเสร็จ (ถ้ามี)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label for="quotation_no" class="block text-sm font-medium text-gray-700 mb-1">เลขที่ใบเสนอราคา</label>
+                    <input type="text" name="quotation_no" id="quotation_no" value="{{ old('quotation_no') }}" placeholder="ระบุเลขที่ใบเสนอราคา (ถ้ามี)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                 </div>
             </div>
 
@@ -132,4 +201,128 @@
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const typeSelect = document.getElementById('customer_type');
+    const customerSelect = document.getElementById('customer_id');
+    
+    const cardBox = document.getElementById('sub_members_card_box');
+    const listRender = document.getElementById('sub_members_list_render');
+    
+    // 1. สำรองข้อมูลรายชื่อลูกค้าทั้งหมด และดึงข้อมูลรายชื่อย่อยเข้าอาร์เรย์กลางอย่างรอบคอบก่อนโครงสร้างพัง
+    const allOptions = Array.from(customerSelect.options)
+        .filter(opt => opt.value !== "")
+        .map(opt => {
+            let subData = [];
+            try {
+                subData = JSON.parse(opt.getAttribute('data-sub-members') || '[]');
+            } catch(e) {
+                subData = [];
+            }
+            return {
+                value: opt.value,
+                text: opt.getAttribute('data-clean-name') || opt.text,
+                type: opt.getAttribute('data-type') || 'corporate',
+                subMembers: subData // ฝังข้อมูลลูกทีมไว้เรียกใช้งาน
+            };
+        });
+
+    // 2. เรียกใช้งานและ Custom ตัววาดหน้าตาของระบบ Tom Select (ดึงปุ่ม badge ยอดรวม และหน้าต่างเลือกให้มีรูปแบบเหมือนรูปตัวอย่าง)
+    const ts = new TomSelect(customerSelect, {
+        create: false,
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text'],
+        placeholder: "-- พิมพ์ค้นหาหรือเลือกรายชื่อ --",
+        allowEmptyOption: true,
+        render: {
+            // หน้าตากล่องผลลัพธ์หลังจากเลือกเสร็จสิ้น
+            item: function(data, escape) {
+                let badgeHtml = '';
+                if(data.subMembers && data.subMembers.length > 0) {
+                    badgeHtml = ` <span class="badge-member-count"><i class="fa-solid fa-users"></i> รวม ${data.subMembers.length + 1} คน <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i></span>`;
+                }
+                return `<div>${escape(data.text)}${badgeHtml}</div>`;
+            },
+            // หน้าตาของแถวตัวเลือกที่ดรอปดาวน์สยายลงมาตอนพิมพ์ค้นหา
+            option: function(data, escape) {
+                let badgeHtml = '';
+                if(data.subMembers && data.subMembers.length > 0) {
+                    badgeHtml = ` <span class="badge-member-count"><i class="fa-solid fa-users"></i> รวม ${data.subMembers.length + 1} คน</span>`;
+                }
+                return `<div class="py-2 px-3 flex items-center justify-between">
+                    <span>${escape(data.text)}</span>
+                    ${badgeHtml}
+                </div>`;
+            }
+        }
+    });
+
+    // 3. ฟังก์ชันสลับรายการลูกค้าตามประเภทที่กดเลือก
+    function filterCustomers() {
+        const selectedType = typeSelect.value;
+        
+        // ล้างค่าที่เคยเลือกและตัวเลือกทั้งหมดในปัจจุบันออกก่อน
+        ts.clearOptions();
+        ts.clear(); 
+        
+        // กรองเอาเฉพาะข้อมูลลูกค้าประเภทที่เลือกแมตช์กัน
+        const filtered = allOptions.filter(opt => opt.type === selectedType);
+        
+        // นำตัวเลือกใหม่ที่กรองแล้วใส่กลับเข้าไปในระบบค้นหา
+        ts.addOptions(filtered);
+        ts.refreshOptions(false);
+    }
+
+    // 4. ผูกเหตุการณ์ตรวจจับเมื่อผู้ใช้งานเปลี่ยนประเภทลูกค้า
+    typeSelect.addEventListener('change', filterCustomers);
+
+    // เพิ่มเติม: ตัวตรวจจับเมื่อเลือกรายชื่อเสร็จ ให้ดึงรายชื่อย่อยทั้งหมดสยายมาเป็นการ์ดสีเทาข้างใต้ทันที
+    ts.on('change', function(value) {
+        cardBox.classList.add('hidden');
+        listRender.innerHTML = '';
+
+        if (!value) return;
+
+        const selectedCustomer = allOptions.find(item => item.value == value);
+        
+        if (selectedCustomer && selectedCustomer.subMembers && selectedCustomer.subMembers.length > 0) {
+            selectedCustomer.subMembers.forEach(m => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-1 py-0.5 text-slate-600';
+                
+                let name = m.name || m.company_name || 'ไม่ระบุชื่อ';
+                let phoneInfo = m.phone ? `(โทร: ${m.phone}` : '';
+                let emailInfo = m.email ? `, อีเมล: ${m.email})` : '';
+                
+                if(m.phone && !m.email) phoneInfo += ')';
+                
+                li.innerHTML = `<i class="fa-solid fa-minus text-slate-400 text-[10px] mr-1"></i> <span>- ${name} <span class="text-slate-400 font-light">${phoneInfo}${emailInfo}</span></span>`;
+                listRender.appendChild(li);
+            });
+            
+            cardBox.classList.remove('hidden');
+        }
+    });
+
+    // 5. รองรับระบบ Old Value กรณีบันทึกฟอร์มไม่ผ่าน ให้กลับมาแสดงข้อมูลเดิมได้อย่างแม่นยำ
+    const oldSelectedValue = "{{ old('customer_id') }}";
+    if (oldSelectedValue) {
+        const matchedOpt = allOptions.find(o => o.value == oldSelectedValue);
+        if (matchedOpt) {
+            typeSelect.value = matchedOpt.type;
+        }
+    }
+    
+    // รันทำงานเริ่มต้นครั้งแรกทันที
+    filterCustomers();
+    
+    if (oldSelectedValue) {
+        ts.setValue(oldSelectedValue);
+        ts.trigger('change', oldSelectedValue);
+    }
+});
+</script>
 @endsection

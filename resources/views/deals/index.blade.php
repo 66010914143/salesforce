@@ -119,8 +119,8 @@
 <div class="space-y-6">
 
     @if($totalPendingCount > 0)
-        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-sm animate-pulse-once">
-            <div class="flex items-center justify-between">
+        <div id="deal-alert-container" class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-sm animate-pulse-once hidden">
+            <div class="flex items-center justify-between flex-wrap sm:flex-nowrap gap-4">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <i class="fa-solid fa-bell text-amber-500 text-xl animate-bounce"></i>
@@ -134,6 +134,11 @@
                         </p>
                     </div>
                 </div>
+                <div>
+                    <button type="button" id="btn-acknowledge-alert" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow-sm whitespace-nowrap">
+                        รับทราบ
+                    </button>
+                </div>
             </div>
         </div>
     @endif
@@ -145,7 +150,7 @@
         </div>
         <div>
             <a href="{{ route('deals.create') }}" class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm">
-                <i class="fa-solid fa-file-invoice-dollar mr-2"></i> บันทึกการขายใหม่
+                <i class="fa-solid fa-file-invoice-dollar mr-2"></i>  เปิดการขาย องค์กร/บุคคล
             </a>
         </div>
     </div>
@@ -169,6 +174,14 @@
                             {{ $companyName }}
                         </option>
                     @endforeach
+                </select>
+            </div>
+
+            <div class="w-full sm:w-auto min-w-[160px] flex-1 sm:flex-none">
+                <select name="customer_type" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+                    <option value="">-- ทุกประเภทลูกค้า --</option>
+                    <option value="organization" {{ request('customer_type') == 'organization' ? 'selected' : '' }}>🏢 องค์กร / บริษัท</option>
+                    <option value="individual" {{ request('customer_type') == 'individual' ? 'selected' : '' }}>👤 บุคคลธรรมดา</option>
                 </select>
             </div>
 
@@ -219,7 +232,7 @@
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors h-[42px] whitespace-nowrap shadow-sm">
                     ค้นหา
                 </button>
-                @if(request('search_company') || request('sales_person_id') || request('month') || request('year'))
+                @if(request('search_company') || request('customer_type') || request('sales_person_id') || request('month') || request('year'))
                     <a href="{{ route('deals.index', ['status' => $status ?? request('status')]) }}" class="text-xs text-rose-500 hover:underline flex items-center gap-1 whitespace-nowrap ml-1" title="ล้างการกรองทั้งหมด">
                         <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรอง
                     </a>
@@ -229,19 +242,19 @@
     </div>
 
     <div class="flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('deals.index', ['sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
+        <a href="{{ route('deals.index', ['customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
             ทั้งหมด
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
             Closed Sale
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Following', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Following', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
             Following
             @if($followingBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $followingBadge }}</span>
             @endif
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Forecast', 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Forecast', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
             Forecast
             @if($forecastBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $forecastBadge }}</span>
@@ -338,7 +351,6 @@
                                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Forecast
                                     </span>
                                 @endif
-
                                 <div class="mt-2">
                                     @if($deal->status == 'Closed Sale')
                                         <span class="inline-flex items-center text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
@@ -355,18 +367,16 @@
                                     @endif
                                 </div>
                             </td>
-
                             <td class="px-6 py-4">
                                 @if($deal->receipt_no)
                                     <div class="text-[11px] font-bold text-indigo-600 mb-1 flex items-center gap-1">
-                                        <span>🧾 เลขที่: {{ $deal->receipt_no }}</span>
+                                        <span>🧾 เลขที่ใบเสร็จ: {{ $deal->receipt_no }}</span>
                                     </div>
                                 @endif
                                 <div class="text-xs text-gray-600 max-w-xs truncate" title="{{ $deal->note ?? $deal->updated_note }}">
                                     {{ $deal->updated_note ?? $deal->note ?? '-' }}
                                 </div>
-                            </td>
-
+                            </td> 
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     <button type="button" 
@@ -379,24 +389,27 @@
                                                 'receipt_no' => $deal->receipt_no,
                                                 'note' => $deal->updated_note ?? $deal->note ?? '-',
                                                 'total_amount' => number_format($dealTotal, 2),
+                                                'closed_date' => $deal->status == 'Closed Sale' ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->format('d/m/Y') : '-',
+                                                'updated_at' => $deal->updated_at ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->addYears(543)->format('d/m/Y H:i') . ' น.' : '-',
                                                 'items' => $itemsFormattedArray
                                             ]) }}"
                                             onclick="openViewDealModal(this)"
                                             class="inline-flex items-center bg-sky-50 hover:bg-sky-100 text-sky-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-sky-200 shadow-sm">
                                         👁️ ดูรายละเอียด
                                     </button>
-
                                     <a href="{{ route('deals.items', $deal->id) }}" class="inline-flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-gray-200">
                                         ⚙️ จัดการคอร์ส ({{ $deal->dealItems->count() }})
                                     </a>
                                     <a href="{{ route('deals.edit', $deal->id) }}" class="inline-flex items-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-amber-200">
-                                        ✏️ แก้ไขการขาย
+                                        ✏️ อัพเดทการขาย
                                     </a>
                                     
                                     @if(auth()->user()->isAdmin() || strtolower(auth()->user()->role) === 'manager')
                                         <form action="{{ route('deals.destroy', $deal->id) }}" method="POST" onsubmit="return confirm('⚠️ ยืนยันลบการขาย: คุณแน่ใจใช่ไหมว่าต้องการลบการขายนี้ออกจากระบบอย่างถาวร?');" class="inline-block">
                                             @csrf
-                                            @method('DELETE')
+                                            @if($deal->id)
+                                                @method('DELETE')
+                                            @endif
                                             <button type="submit" class="inline-flex items-center bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-rose-200">
                                                 🗑️ ลบการขาย
                                             </button>
@@ -415,10 +428,10 @@
                 </tbody>
             </table>
         </div>
-
+        
         @if(method_exists($deals, 'hasPages') && $deals->hasPages())
             <div class="p-4 border-t border-gray-100 bg-slate-50">
-                {{ $deals->appends(['status' => $status ?? request('status'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')])->links() }}
+                {{ $deals->appends(['status' => $status ?? request('status'), 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')])->links() }}
             </div>
         @endif
     </div>
@@ -452,6 +465,11 @@
                 <div>
                     <span class="text-xs font-semibold text-gray-400 uppercase block tracking-wider mb-2">สถานะการติดตาม</span>
                     <div id="modalStatusContainer"></div>
+                    
+                    <div id="modalClosedDateContainer" class="hidden mt-3">
+                        <span class="text-xs font-semibold text-emerald-600/80 uppercase block tracking-wider">📅 วันที่ปิดการขาย</span>
+                        <span id="modalClosedDate" class="text-sm font-bold text-emerald-600 block mt-0.5">-</span>
+                    </div>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-gray-400 uppercase block tracking-wider mb-2">ความคืบหน้าล่าสุด</span>
@@ -530,6 +548,55 @@
                 closeViewDealModal();
             }
         });
+
+        // 🔔 ตรวจสอบสถานะการกดรับทราบแจ้งเตือนผ่าน localStorage โดยอ้างอิงจากยอดรวมงานค้าง
+        const currentPendingCount = parseInt("{{ $totalPendingCount }}") || 0;
+        const alertBox = document.getElementById('deal-alert-container');
+
+        if (alertBox && currentPendingCount > 0) {
+            const savedCount = localStorage.getItem('acknowledged_deals_count');
+            
+            // ถ้าค่าในระบบไม่เท่ากับจำนวนที่เคยกดรับทราบไว้ (แปลว่ามีงานเพิ่มขึ้นหรือลดลง) -> ให้เด้งแสดงกล่องเตือนใหม่ทันที
+            if (savedCount === null || parseInt(savedCount) !== currentPendingCount) {
+                alertBox.classList.remove('hidden');
+            }
+        }
+
+        // 🔔 ระบบส่งข้อมูลเมื่อกดปุ่ม "รับทราบ"
+        const btnAckAlert = document.getElementById('btn-acknowledge-alert');
+        if (btnAckAlert) {
+            btnAckAlert.addEventListener('click', function() {
+                const alertContainer = this.closest('#deal-alert-container');
+                
+                // เก็บจำนวนงานค้างรอบนี้ลงเครื่องผู้ใช้เพื่อระบุว่ารับทราบยอดจำนวนนี้แล้ว
+                localStorage.setItem('acknowledged_deals_count', currentPendingCount);
+
+                // ยิงไปแจ้งหลังบ้านตามตรรกะเดิม
+                fetch("{{ route('deals.acknowledgeAlert') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ acknowledged: true })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        if (alertContainer) {
+                            alertContainer.style.transition = 'all 0.4s ease';
+                            alertContainer.style.opacity = '0';
+                            alertContainer.style.transform = 'translateY(-10px)';
+                            setTimeout(() => alertContainer.remove(), 400);
+                        }
+                    } else {
+                        console.error('ไม่สามารถอัปเดตสถานะการรับทราบไปยังเซิร์ฟเวอร์ได้');
+                    }
+                })
+                .catch(error => {
+                    console.error('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย:', error);
+                });
+            });
+        }
     });
 
     // 🟢 ฟังก์ชันควบคุมเปิดใช้งาน Popup Modal และนำข้อมูลมาแปะลง UI สดๆ
@@ -547,15 +614,30 @@
         $('#modalNote').text(data.note || '-');
         $('#modalTotalAmount').text('฿' + data.total_amount);
 
-        // จัดแจง Badge สถานะให้ตรงตามของเดิม
+        // จัดแจง Badge สถานะ และแสดง/ซ่อนวันที่ปิดการขาย
         let statusHtml = '';
         if (data.status === 'Closed Sale') {
             statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Closed Sale</span>`;
+            
+            if(data.closed_date && data.closed_date !== '-') {
+                $('#modalClosedDate').text(data.closed_date);
+                $('#modalClosedDateContainer').removeClass('hidden').addClass('block');
+            } else {
+                $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
+            }
         } else if (data.status === 'Following') {
             statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> Following</span>`;
+            $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
         } else {
             statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Forecast</span>`;
+            $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
         }
+
+        // เพิ่มวันที่และเวลาอัปเดตล่าสุด ต่อท้าย Badge สถานะ
+        if(data.updated_at && data.updated_at !== '-') {
+            statusHtml += `<div class="mt-2 text-[11px] text-gray-500 font-medium">🕒 อัปเดตล่าสุด: ${data.updated_at}</div>`;
+        }
+
         $('#modalStatusContainer').html(statusHtml);
 
         // จัดแจง Badge ความคืบหน้า
@@ -606,34 +688,5 @@
         $('#viewDealModal').addClass('hidden').removeClass('flex');
         $('body').removeClass('overflow-hidden');
     }
-
-    // 🟢 แจ้งเตือนงานค้างด้วย SweetAlert2 (จะเด้งเมื่อมีงานที่ยังไม่ได้ปิดการขาย)
-    document.addEventListener("DOMContentLoaded", function() {
-        let pendingCount = {{ $totalPendingCount }};
-        
-        // ใช้ Session Storage เช็คเพื่อไม่ให้เด้งรบกวนทุกครั้งที่กด Refresh ให้เด้งแค่ตอนเปิดหน้านี้ครั้งแรก
-        if (pendingCount > 0 && !sessionStorage.getItem('pendingAlertShown')) {
-            Swal.fire({
-                title: '<span style="color:#b45309;">แจ้งเตือนงานค้าง!</span>',
-                html: `คุณมีงานขายในสถานะ <b>Following</b> และ <b>Forecast</b> จำนวน <b style="color:#ef4444; font-size:1.1rem;">${pendingCount}</b> งาน <br><span style="font-size:0.9rem; color:#6b7280; margin-top:8px; display:block;">โปรดติดตามงานและอัปเดตเป็น Closed Sale เมื่อปิดการขายเรียบร้อยแล้ว</span>`,
-                icon: 'warning',
-                confirmButtonText: 'รับทราบ',
-                confirmButtonColor: '#f59e0b',
-                toast: true, 
-                position: 'top-end',
-                timer: 6000, 
-                timerProgressBar: true,
-                showClass: {
-                    popup: 'animate__animated animate__fadeInDown'
-                },
-                hideClass: {
-                    popup: 'animate__animated animate__fadeOutUp'
-                }
-            });
-            
-            // บันทึกไว้ว่าแจ้งเตือนแล้ว จะได้ไม่เด้งซ้ำรัวๆ
-            sessionStorage.setItem('pendingAlertShown', 'true');
-        }
-    });
 </script>
 @endsection
