@@ -169,15 +169,19 @@
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-4 py-3 text-gray-700 font-medium">{{ $item->name }}</td>
                                     <td class="px-4 py-3 text-right flex justify-end gap-2">
-                                        {{-- ➕ อัปเดตเงื่อนไขในหน้าจอ: เช็กคำหลักด้วย \Illuminate\Support\Str::contains --}}
-                                        @if(!\Illuminate\Support\Str::contains($item->name, ['Denied', 'Closed Sale', 'Following', 'Forecast']))
+                                        @if(!in_array($item->name, [
+                                            'Denied', 'Closed Sale', 'Following', 'Forecast',
+                                            'Denied (ปฏิเสธ/ยกเลิก)', 'Closed Sale (ปิดการขายสำเร็จ)', 'Following (กำลังติดตามงาน)', 'Forecast (ประมาณการยอดขาย)'
+                                        ]))
                                             <button @click="isEditModalOpen = true; editItemName = '{{ $item->name }}'; editActionUrl = '{{ route('admin.master-data.update', ['type' => 'main-status', 'id' => $item->id]) }}'" class="text-slate-500 hover:text-amber-500 p-1 cursor-pointer" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
                                             <form action="{{ route('admin.master-data.destroy', ['type' => 'main-status', 'id' => $item->id]) }}" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบตัวเลือกนี้?')" class="inline">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-slate-400 hover:text-rose-500 p-1 cursor-pointer" title="ลบ"><i class="fa-solid fa-trash-can"></i></button>
                                             </form>
                                         @else
-                                            <span class="text-gray-400 text-xs flex items-center justify-end"><i class="fa-solid fa-lock mr-1"></i> ล็อก</span>
+                                            <span class="text-gray-400 text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md inline-flex items-center select-none" title="ระบบล็อกไว้เพื่อความปลอดภัย">
+                                                <i class="fa-solid fa-lock mr-1 text-[11px]"></i> ระบบ
+                                            </span>
                                         @endif
                                     </td>
                                 </tr>

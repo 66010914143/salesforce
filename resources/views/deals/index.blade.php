@@ -36,6 +36,11 @@
         ->distinct()
         ->orderBy('customers.company_name', 'asc')
         ->pluck('company_name');
+
+    // 🟢 ตรวจสอบหาก Controller ไม่ได้ส่งข้อมูล $mainStatuses มา ให้สืบค้นข้อมูลจากตารางตระกูล Master Data โดยตรงที่นี่ทันทีเพื่อกันข้อมูลไม่ขึ้น
+    if (!isset($mainStatuses) || empty($mainStatuses)) {
+        $mainStatuses = \Illuminate\Support\Facades\DB::table('main_statuses')->orderBy('id', 'asc')->get();
+    }
 @endphp
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -189,13 +194,10 @@
 
             <div class="w-full sm:w-auto min-w-[160px] flex-1 sm:flex-none">
                 <select name="status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
-                    <option value="">-- สถานะทั้งหมด --</option>
-                    @php
-                        $availableStatuses = ['Closed Sale', 'Following', 'Forecast'];
-                    @endphp
-                    @foreach($availableStatuses as $vStatus)
-                        <option value="{{ $vStatus }}" {{ (request('status') ?? $status ?? '') == $vStatus ? 'selected' : '' }}>
-                            {{ $vStatus }}
+                    <option value="">-- Status ทั้งหมด --</option>
+                    @foreach($mainStatuses as $mStatus)
+                        <option value="{{ $mStatus->name }}" {{ strtolower(request('status') ?? $status ?? '') === strtolower($mStatus->name) ? 'selected' : '' }}>
+                            {{ $mStatus->name }}
                         </option>
                     @endforeach
                 </select>
@@ -240,7 +242,7 @@
             </div>
             
             <div class="flex items-center gap-2 ml-auto">
-                @if(request('search_company') || request('customer_type') || request('sales_person_id') || request('month') || request('year') || request('status') || isset($selectedMonth) || isset($selectedYear) || isset($searchCompany))
+                @if(request('search_company') || request('customer_type') || request('sales_person_id') || request('month') || request('year') || request('status'))
                     <a href="{{ route('deals.index') }}" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg text-sm px-4 py-2.5 text-center transition-colors h-[42px] whitespace-nowrap shadow-sm border border-rose-200" title="ล้างการกรองทั้งหมด">
                         <i class="fa-solid fa-rotate-left"></i> ล้างการค้นหา
                     </a>
@@ -250,24 +252,38 @@
     </div>
 
     <div class="flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('deals.index', ['customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
+        <a href="{{ route('deals.index', array_filter(['customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')])) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !request('status') ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
             ทั้งหมด
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
-            Closed Sale
-        </a>
-        <a href="{{ route('deals.index', ['status' => 'Following', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
-            Following
-            @if($followingBadge > 0)
-                <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $followingBadge }}</span>
-            @endif
-        </a>
-        <a href="{{ route('deals.index', ['status' => 'Forecast', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
-            Forecast
-            @if($forecastBadge > 0)
-                <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $forecastBadge }}</span>
-            @endif
-        </a>
+        @foreach($mainStatuses as $mStatus)
+            @php
+                $isCurrentTabActive = strtolower(request('status', '')) === strtolower($mStatus->name);
+                
+                // จัดการเรื่องสไตล์สีและ Badge ตัวเลขแจ้งเตือนสำหรับสถานะยอดนิยมเดิมให้ตรงดีไซน์
+                $tabColorClass = 'bg-white text-indigo-600 border border-gray-200 hover:bg-indigo-50';
+                $activeColorClass = 'bg-indigo-600 text-white';
+                $badgeCount = 0;
+
+                if (strtolower($mStatus->name) === 'closed sale') {
+                    $tabColorClass = 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50';
+                    $activeColorClass = 'bg-emerald-600 text-white';
+                } elseif (strtolower($mStatus->name) === 'following') {
+                    $tabColorClass = 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50';
+                    $activeColorClass = 'bg-blue-600 text-white';
+                    $badgeCount = $followingBadge;
+                } elseif (strtolower($mStatus->name) === 'forecast') {
+                    $tabColorClass = 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50';
+                    $activeColorClass = 'bg-amber-600 text-white';
+                    $badgeCount = $forecastBadge;
+                }
+            @endphp
+            <a href="{{ route('deals.index', array_merge(request()->except(['page']), ['status' => $mStatus->name])) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ $isCurrentTabActive ? $activeColorClass : $tabColorClass }}">
+                {{ $mStatus->name }}
+                @if($badgeCount > 0)
+                    <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $badgeCount }}</span>
+                @endif
+            </a>
+        @endforeach
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -348,23 +364,25 @@
                             <td class="px-6 py-4 text-right font-bold text-slate-900">฿{{ number_format($dealTotal, 2) }}</td>
                             
                             <td class="px-6 py-4 text-center">
-                                @if($deal->status == 'Closed Sale')
+                                @if(strtolower($deal->status) == 'closed sale')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Closed Sale
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> {{ $deal->status }}
                                     </span>
-                                @endif
-                                @if($deal->status == 'Following')
+                                @elseif(strtolower($deal->status) == 'following')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> Following
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> {{ $deal->status }}
                                     </span>
-                                @endif
-                                @if($deal->status != 'Closed Sale' && $deal->status != 'Following')
+                                @elseif(strtolower($deal->status) == 'forecast')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Forecast
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> {{ $deal->status }}
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span> {{ $deal->status ?? 'ไม่ระบุ' }}
                                     </span>
                                 @endif
                                 <div class="mt-2">
-                                    @if($deal->status == 'Closed Sale')
+                                    @if(strtolower($deal->status) == 'closed sale')
                                         <span class="inline-flex items-center text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
                                             🎉 ปิดการขายสำเร็จ
                                         </span>
@@ -402,7 +420,7 @@
                                                 'note' => $deal->updated_note ?? $deal->note ?? '-',
                                                 'total_amount' => number_format($dealTotal, 2),
                                                 'deal_date' => $deal->deal_date ? \Carbon\Carbon::parse($deal->deal_date)->format('Y-m-d') : ($deal->created_at ? \Carbon\Carbon::parse($deal->created_at)->format('Y-m-d') : ''),
-                                                'closed_date' => $deal->status == 'Closed Sale' ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->format('d/m/Y') : '-',
+                                                'closed_date' => strtolower($deal->status) == 'closed sale' ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->format('d/m/Y') : '-',
                                                 'updated_at' => $deal->updated_at ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->addYears(543)->format('d/m/Y H:i') . ' น.' : '-',
                                                 'items' => $itemsFormattedArray
                                             ]) }}"
@@ -444,14 +462,7 @@
         
         @if(method_exists($deals, 'hasPages') && $deals->hasPages())
             <div class="p-4 border-t border-gray-100 bg-slate-50">
-                {{ $deals->appends([
-                    'status' => $status ?? request('status'), 
-                    'customer_type' => request('customer_type') ?? $customerType ?? '', 
-                    'sales_person_id' => request('sales_person_id') ?? $selectedSalesPerson ?? '', 
-                    'month' => request('month') ?? $selectedMonth ?? '', 
-                    'year' => request('year') ?? $selectedYear ?? '', 
-                    'search_company' => request('search_company') ?? $searchCompany ?? ''
-                ])->links() }}
+                {{ $deals->appends(request()->query())->links() }}
             </div>
         @endif
     </div>
@@ -588,7 +599,7 @@
                 const alertContainer = this.closest('#deal-alert-container');
                 localStorage.setItem('acknowledged_deals_count', currentPendingCount);
 
-                fetch("{{ route('deals.acknowledgeAlert') }}", {
+                fetch("{{ route('deals.dismissAlert') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -624,19 +635,24 @@
         $('#modalTotalAmount').text('฿' + data.total_amount);
 
         let statusHtml = '';
-        if (data.status === 'Closed Sale') {
-            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Closed Sale</span>`;
+        let lowerStatus = data.status ? data.status.toLowerCase() : '';
+
+        if (lowerStatus === 'closed sale') {
+            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> ${data.status}</span>`;
             if(data.closed_date && data.closed_date !== '-') {
                 $('#modalClosedDate').text(data.closed_date);
                 $('#modalClosedDateContainer').removeClass('hidden').addClass('block');
             } else {
                 $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
             }
-        } else if (data.status === 'Following') {
-            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> Following</span>`;
+        } else if (lowerStatus === 'following') {
+            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> ${data.status}</span>`;
+            $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
+        } else if (lowerStatus === 'forecast') {
+            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> ${data.status}</span>`;
             $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
         } else {
-            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Forecast</span>`;
+            statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span> ${data.status || 'ไม่ระบุ'}</span>`;
             $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
         }
 
@@ -646,7 +662,7 @@
         $('#modalStatusContainer').html(statusHtml);
 
         let progressHtml = '';
-        if (data.status === 'Closed Sale') {
+        if (lowerStatus === 'closed sale') {
             progressHtml = `<span class="inline-flex items-center text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">🎉 ปิดการขายสำเร็จ</span>`;
         } else if (data.progress && data.progress.trim() !== '') {
             progressHtml = `<span class="inline-flex items-center text-[11px] font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200 shadow-sm">📌 ${data.progress}</span>`;

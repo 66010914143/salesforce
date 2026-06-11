@@ -82,7 +82,7 @@
 
                 @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('admin.master-data.index') }}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ Request::is('admin/master-data*') ? 'bg-slate-800 text-white' : '' }}">
-                    <i class="fa-solid fa-sliders mr-3 w-5 text-center text-slate-400"></i> ตั้งค่าข้อมูลระบบ (Dropdown)
+                    <i class="fa-solid fa-sliders mr-3 w-5 text-center text-slate-400"></i> เพิ่ม/แก้ไข การบันทึกการขาย 
                 </a>
                 @endif
             </nav>
@@ -131,13 +131,6 @@
             </header>
 
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
-                @if(session('success'))
-                    <div class="mb-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 p-4 rounded-r-lg shadow-sm flex items-center">
-                        <i class="fa-solid fa-circle-check mr-2 text-emerald-500 text-lg"></i>
-                        <span>{{ session('success') }}</span>
-                    </div>
-                @endif
-
                 @yield('content')
             </main>
         </div>

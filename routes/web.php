@@ -35,9 +35,9 @@ Route::get('/setup-admin', function() {
 Route::middleware(['auth'])->group(function () {
 
     // ➕ ส่วนที่เพิ่มใหม่: แก้ไขปัญหา Route [dashboard] not defined ในเมนูด้านซ้าย
+    // ➕ แนะนำเพิ่ม: หากพิมพ์แค่ 127.0.0.1:8000 ให้เด้งเข้าหน้าแดชบอร์ดอัตโนมัติ จะได้ไม่เจอ 404
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    // ➕ แนะนำเพิ่ม: หากพิมพ์แค่ 127.0.0.1:8000 ให้เด้งเข้าหน้าแดชบอร์ดอัตโนมัติ จะได้ไม่เจอ 404
     Route::get('/', function () {
         return redirect()->route('dashboard');
     });
@@ -58,8 +58,9 @@ Route::middleware(['auth'])->group(function () {
     // หน้าบันทึกงานขายและติดตามสถานะ (โมดูล 2)
     Route::resource('deals', SalesDealController::class);
 
-    // ➕ ส่วนที่เพิ่มใหม่: เส้นทางสำหรับกดรับทราบการแจ้งเตือนงานขาย (บันทึก Session ไม่ให้เด้งเตือนซ้ำ)
-    Route::post('/deals/dismiss-alert', [SalesDealController::class, 'dismissAlert'])->name('deals.dismiss_alert');
+    // ➕ ส่วนที่เพิ่มใหม่: เส้นทางสำหรับกดรับทราบการแจ้งเตือนงานขาย (แก้ไขชื่อสอดคล้องกับ AJAX และระบบหน้าบ้าน)
+    Route::post('/deals/dismiss-alert', [SalesDealController::class, 'dismissAlert'])->name('deals.dismissAlert');
+    Route::post('/deals/dismiss-alert-old', [SalesDealController::class, 'dismissAlert'])->name('deals.dismiss_alert');
     
     // ➕ ส่วนที่เพิ่มใหม่: เส้นทางรองรับการกดรับทราบแจ้งเตือนผ่าน Fetch API (แก้ไขปัญหา Route not defined)
     Route::post('/deals/acknowledge-alert', [SalesDealController::class, 'dismissAlert'])->name('deals.acknowledgeAlert');

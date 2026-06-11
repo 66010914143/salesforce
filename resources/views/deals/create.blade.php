@@ -237,21 +237,12 @@ document.addEventListener("DOMContentLoaded", function() {
         render: {
             // หน้าตากล่องผลลัพธ์หลังจากเลือกเสร็จสิ้น
             item: function(data, escape) {
-                let badgeHtml = '';
-                if(data.subMembers && data.subMembers.length > 0) {
-                    badgeHtml = ` <span class="badge-member-count"><i class="fa-solid fa-users"></i> รวม ${data.subMembers.length + 1} คน <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i></span>`;
-                }
-                return `<div>${escape(data.text)}${badgeHtml}</div>`;
+                return `<div>${escape(data.text)}</div>`;
             },
             // หน้าตาของแถวตัวเลือกที่ดรอปดาวน์สยายลงมาตอนพิมพ์ค้นหา
             option: function(data, escape) {
-                let badgeHtml = '';
-                if(data.subMembers && data.subMembers.length > 0) {
-                    badgeHtml = ` <span class="badge-member-count"><i class="fa-solid fa-users"></i> รวม ${data.subMembers.length + 1} คน</span>`;
-                }
                 return `<div class="py-2 px-3 flex items-center justify-between">
                     <span>${escape(data.text)}</span>
-                    ${badgeHtml}
                 </div>`;
             }
         }

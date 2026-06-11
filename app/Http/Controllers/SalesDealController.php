@@ -91,12 +91,26 @@ class SalesDealController extends Controller
             });
         }
 
-        // กรองตามสถานะดีลที่มีการกดลิงก์แท็บมาจากหน้าบ้าน (ถ้ามี)
-        $deals = $query->when($status, function($query, $status) {
-                return $query->where('status', $status);
-            })
-            ->latest()
-            ->paginate(15);
+        // 🛠️ [จุดที่แก้ไขเด็ดขาด] ตรวจสอบจับคู่ภาษาไทย/คำผสมจากปุ่มหน้าบ้าน แล้ว Map กลับเข้าฐานข้อมูลตามรูปภาพหลักฐาน
+        if ($request->filled('status')) {
+            $statusStr = strtolower(trim($status));
+            
+            // ดักจับและแปลงค่าให้ตรงรูปแบบ String ในฐานข้อมูล
+            if (str_contains($statusStr, 'close') || str_contains($statusStr, 'ปิดการขาย')) {
+                $query->where('status', 'Closed Sale');
+            } elseif (str_contains($statusStr, 'follow') || str_contains($statusStr, 'ติดตาม')) {
+                $query->where('status', 'Following');
+            } elseif (str_contains($statusStr, 'forecast') || str_contains($statusStr, 'คาดการณ์')) {
+                $query->where('status', 'Forecast');
+            } elseif (str_contains($statusStr, 'denied') || str_contains($statusStr, 'ปฏิเสธ')) {
+                $query->where('status', 'Denied');
+            } else {
+                // กรณีเป็นค่าอื่นๆ นอกเหนือจากแท็บหลัก ให้ดึงแบบยืดหยุ่นปกติ
+                $query->where('status', $status);
+            }
+        }
+
+        $deals = $query->latest()->paginate(15);
 
         // ⚡ เพิ่มการ Mapping เพื่อผูกตัวแปร salesPerson ให้ชี้ไปที่ Object พนักงานขาย (User) โดยตรงแบบปลอดภัย ป้องกันปัญหากับหน้า View เดิม
         $deals->getCollection()->transform(function ($deal) {
@@ -116,10 +130,10 @@ class SalesDealController extends Controller
         $mainStatuses = MainStatus::orderBy('id', 'asc')->get();
 
         // 🔔 เช็คงานค้าง (Following, Forecast) ของผู้ใช้งานปัจจุบัน หรือของทุกคนกรณีเป็น Admin/Manager เพื่อนำไปทำแจ้งเตือน
-        // โดยใช้เงื่อนไขตรวจสอบ status รูปแบบตัวอักษรเล็ก/ใหญ่ให้ครอบคลุม (คงการเช็คเฉพาะ Following และ Forecast ตามเจตนาเดิมของระบบแจ้งเตือนงานค้าง)
+        // ปรับปรุงเงื่อนไขเช็คให้ครอบคลุมและใช้ LOWER ในฐานข้อมูลเพื่อความเสถียร
         $pendingDealsCount = 0;
         if (Auth::check()) {
-            $pendingQuery = SalesDeal::whereIn('status', ['following', 'Following', 'forecast', 'Forecast']);
+            $pendingQuery = SalesDeal::whereRaw('LOWER(status) IN (?, ?)', ['following', 'forecast']);
             
             // ถ้าไม่ใช่ Admin หรือ Manager ให้คัดกรองเฉพาะงานของตัวเอง
             if (!$isUserAdminOrManager) {

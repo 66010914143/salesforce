@@ -69,4 +69,10 @@ class SalesDeal extends Model
     {
         return $this->hasMany(DealLog::class, 'sales_deal_id')->latest();
     }
+
+    // ➕ เพิ่มความสัมพันธ์กับสถานะหลักเพื่อดึงข้อมูลข้ามตารางกับตัว Dropdown Master Data (กรณีฐานข้อมูลเชื่อมโยงกันด้วยชื่อสถานะ)
+    public function mainStatus()
+    {
+        return $this->belongsTo(MainStatus::class, 'status', 'name');
+    }
 }
