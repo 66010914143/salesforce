@@ -136,20 +136,6 @@
                     <i class="fa-solid fa-circle-dollar-to-slot"></i>
                 </div>
             </div>
-            <div class="bg-slate-50/70 border-t border-gray-100 px-4 py-2.5 space-y-1 text-xs">
-                <div class="flex justify-between text-slate-500">
-                    <span>ยอดก่อนภาษี (Net Amount):</span>
-                    <span class="font-mono font-medium">฿{{ number_format($totalNet ?? 0, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-slate-500">
-                    <span>ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
-                    <span class="font-mono font-medium">฿{{ number_format($totalVat ?? 0, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-slate-800 font-bold pt-0.5 border-t border-dashed border-gray-200">
-                    <span>ยอดรวมสุทธิ (Gross Amount):</span>
-                    <span class="font-mono text-emerald-600">฿{{ number_format($totalClosed, 2) }}</span>
-                </div>
-            </div>
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">

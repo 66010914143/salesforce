@@ -118,10 +118,10 @@
                 <div>
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-1">สถานะการขาย <span class="text-rose-500">*</span></label>
                     <select name="status" id="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
-                        <option value="Forecast" {{ old('status') == 'Forecast' ? 'selected' : '' }}>Forecast (ประมาณการยอดขาย)</option>
-                        <option value="Following" {{ old('status') == 'Following' ? 'selected' : '' }}>Following (กำลังติดตามงาน)</option>
-                        <option value="Closed Sale" {{ old('status') == 'Closed Sale' ? 'selected' : '' }}>Closed Sale (ปิดการขายสำเร็จ)</option>
-                        <option value="Denied" {{ old('status') == 'Denied' ? 'selected' : '' }}>Denied (ปฏิเสธ/ยกเลิก)</option>
+                        <option value="">-- เลือกสถานะการขาย --</option>
+                        @foreach($mainStatuses as $statusItem)
+                            <option value="{{ $statusItem->name }}" {{ old('status') == $statusItem->name ? 'selected' : '' }}>{{ $statusItem->name }}</option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -129,10 +129,9 @@
                     <label for="progress" class="block text-sm font-medium text-gray-700 mb-1">สถานะย่อย</label>
                     <select name="progress" id="progress" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
                         <option value="">-- เลือกสถานะย่อย --</option>
-                        <option value="ส่งใบเสนอราคาแล้ว (Waiting Quoted)" {{ old('progress') == 'ส่งใบเสนอราคาแล้ว (Waiting Quoted)' ? 'selected' : '' }}>ส่งใบเสนอราคาแล้ว (Waiting Quoted)</option>
-                        <option value="กำลังพิจารณาสัญญา (Reviewing Contract)" {{ old('progress') == 'กำลังพิจารณาสัญญา (Reviewing Contract)' ? 'selected' : '' }}>กำลังพิจารณาสัญญา (Reviewing Contract)</option>
-                        <option value="รอโอนเงินมัดจำ" {{ old('progress') == 'รอโอนเงินมัดจำ' ? 'selected' : '' }}>รอโอนเงินมัดจำ</option>
-                        <option value="ติดตามงานครั้งที่ 1" {{ old('progress') == 'ติดตามงานครั้งที่ 1' ? 'selected' : '' }}>ติดตามงานครั้งที่ 1</option>
+                        @foreach($subStatuses as $sub)
+                            <option value="{{ $sub->name }}" {{ old('progress') == $sub->name ? 'selected' : '' }}>{{ $sub->name }}</option>
+                        @endforeach
                     </select>
                 </div>
             </div>
@@ -142,29 +141,27 @@
                     <label for="group" class="block text-sm font-medium text-gray-700 mb-1">กลุ่มลูกค้า</label>
                     <select name="group" id="group" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
                         <option value="">-- เลือก --</option>
-                        <option value="Corporate" {{ old('group') == 'Corporate' ? 'selected' : '' }}>Corporate</option>
-                        <option value="Person" {{ old('group') == 'Person' ? 'selected' : '' }}>Person</option>
-                        <option value="Government" {{ old('group') == 'Government' ? 'selected' : '' }}>Government</option>
+                        @foreach($customerGroups as $group)
+                            <option value="{{ $group->name }}" {{ old('group') == $group->name ? 'selected' : '' }}>{{ $group->name }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
                     <label for="category" class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
                     <select name="category" id="category" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
                         <option value="">-- เลือก --</option>
-                        <option value="SME" {{ old('category') == 'SME' ? 'selected' : '' }}>SME</option>
-                        <option value="Public" {{ old('category') == 'Public' ? 'selected' : '' }}>Public</option>
-                        <option value="In-house" {{ old('category') == 'In-house' ? 'selected' : '' }}>In-house</option>
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->name }}" {{ old('category') == $cat->name ? 'selected' : '' }}>{{ $cat->name }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
                     <label for="tools" class="block text-sm font-medium text-gray-700 mb-1">ช่องทาง</label>
                     <select name="tools" id="tools" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
                         <option value="">-- เลือก --</option>
-                        <option value="Sales" {{ old('tools') == 'Sales' ? 'selected' : '' }}>Sales</option>
-                        <option value="Line OA" {{ old('tools') == 'Line OA' ? 'selected' : '' }}>Line OA</option>
-                        <option value="Facebook Ads" {{ old('tools') == 'Facebook Ads' ? 'selected' : '' }}>Facebook Ads</option>
-                        <option value="Cold Call" {{ old('tools') == 'Cold Call' ? 'selected' : '' }}>Cold Call</option>
-                        <option value="Inbound" {{ old('tools') == 'Inbound' ? 'selected' : '' }}>Inbound</option>
+                        @foreach($channels as $channel)
+                            <option value="{{ $channel->name }}" {{ old('tools') == $channel->name ? 'selected' : '' }}>{{ $channel->name }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>

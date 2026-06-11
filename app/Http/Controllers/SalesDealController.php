@@ -9,6 +9,13 @@ use App\Models\Course;
 use App\Models\DealItem;
 use App\Models\User;
 use App\Models\DealLog; // 🟢 เพิ่ม Model สำหรับบันทึกประวัติ
+// ➕ เพิ่มการเรียกใช้งาน Model ทั้ง 4 ตัวสำหรับ Dropdown Master Data
+use App\Models\SubStatus;
+use App\Models\CustomerGroup;
+use App\Models\MasterCategory;
+use App\Models\MasterChannel;
+use App\Models\MasterChannel as MasterChannelModel;
+use App\Models\MainStatus; // ➕ เพิ่มการเรียกใช้งาน Model สำหรับสถานะหลักใหม่จากฐานข้อมูล
 use Illuminate\Support\Facades\Auth;
 
 class SalesDealController extends Controller
@@ -19,13 +26,14 @@ class SalesDealController extends Controller
         $status = $request->get('status');
         $selectedSalesPerson = $request->get('sales_person_id');
         
-        // 🟢 รับค่าตัวกรองเดือน, ปี และ ประเภทลูกค้า
+        // 🟢 รับค่าตัวกรองเดือน, ปี, ประเภทลูกค้า และ ชื่อบริษัท
         $selectedMonth = $request->get('month');
         $selectedYear = $request->get('year');
-        $customerType = $request->get('customer_type'); // 🟢 เพิ่มบรรทัดนี้
+        $customerType = $request->get('customer_type'); 
+        $searchCompany = $request->get('search_company'); // 🟢 เพิ่มรับค่าค้นหาบริษัท
 
-        // ดึงข้อมูลดีลพร้อมข้อมูลลูกค้าและสินค้าที่เชื่อมโยงกัน
-        $query = SalesDeal::with(['customer', 'dealItems.course']);
+        // ดึงข้อมูลดีลพร้อมข้อมูลลูกค้าและสินค้าที่เชื่อมโยงกัน (โหลด user พ่วงเข้ามาเพื่อใช้เป็นผู้ดูแลดีล)
+        $query = SalesDeal::with(['customer', 'dealItems.course', 'user']);
 
         // 🔒 ระบบล็อกสิทธิ์คัดแยกมุมมองข้อมูลดีลงานขาย (อัปเดตเพิ่มสิทธิ์ให้ Manager เห็นเหมือน Admin)
         $isUserAdminOrManager = Auth::check() && (Auth::user()->isAdmin() || strtolower(Auth::user()->role) === 'manager');
@@ -40,14 +48,25 @@ class SalesDealController extends Controller
             $query->where('user_id', Auth::id());
         }
 
-        // 🟢 เพิ่มการกรองตามเดือนที่สร้างดีล
-        if ($selectedMonth) {
-            $query->whereMonth('created_at', $selectedMonth);
+        // 🟢 เพิ่มการกรองตามชื่อบริษัท (แก้ไขเอาคอลัมน์ name ที่ไม่มีจริงออก ป้องกัน Error 1054)
+        if ($searchCompany) {
+            $query->whereHas('customer', function($q) use ($searchCompany) {
+                $q->where('company_name', 'LIKE', '%' . $searchCompany . '%');
+            });
         }
 
-        // 🟢 เพิ่มการกรองตามปีที่สร้างดีล
+        // 🔍 🟢 ปรับปรุงการกรองตามเดือนที่สร้างดีล (ให้ค้นหาจากคอลัมน์ deal_date แทน เพื่อให้ตรงกับวันที่ในงานขาย)
+        if ($selectedMonth) {
+            $query->whereMonth('deal_date', $selectedMonth);
+        }
+
+        // 🔍 🟢 ปรับปรุงการกรองตามปีที่สร้างดีล (รองรับการแปลงปี พ.ศ. เป็น ค.ศ. อัตโนมัติ ป้องกันค้นหาไม่เจอ)
         if ($selectedYear) {
-            $query->whereYear('created_at', $selectedYear);
+            $yearValue = (int)$selectedYear;
+            if ($yearValue > 2500) {
+                $yearValue = $yearValue - 543;
+            }
+            $query->whereYear('deal_date', $yearValue);
         }
 
         // 🟢 แก้ไขระบบกวาดข้อมูลประเภทลูกค้า: ป้องกันกรณีฐานข้อมูลเก็บค่า person หรือ individual สลับกัน
@@ -78,6 +97,14 @@ class SalesDealController extends Controller
             })
             ->latest()
             ->paginate(15);
+
+        // ⚡ เพิ่มการ Mapping เพื่อผูกตัวแปร salesPerson ให้ชี้ไปที่ Object พนักงานขาย (User) โดยตรงแบบปลอดภัย ป้องกันปัญหากับหน้า View เดิม
+        $deals->getCollection()->transform(function ($deal) {
+            if (!isset($deal->salesPerson) || empty($deal->salesPerson)) {
+                $deal->setRelation('salesPerson', $deal->user);
+            }
+            return $deal;
+        });
             
         // 🟢 แนบ request กลับไปที่ pagination เพื่อไม่ให้ parameter หลุดเวลาเปลี่ยนหน้า
         $deals->appends($request->all());
@@ -85,8 +112,11 @@ class SalesDealController extends Controller
         // ดึงรายชื่อพนักงานทั้งหมดส่งไปให้ Admin และ Manager เลือกกรองในหน้า View
         $salesPersons = User::all();
 
+        // 🟢 ดึงข้อมูลสถานะหลักจากฐานข้อมูลเพื่อนำไปสร้าง Dropdown Filter
+        $mainStatuses = MainStatus::orderBy('id', 'asc')->get();
+
         // 🔔 เช็คงานค้าง (Following, Forecast) ของผู้ใช้งานปัจจุบัน หรือของทุกคนกรณีเป็น Admin/Manager เพื่อนำไปทำแจ้งเตือน
-        // โดยใช้เงื่อนไขตรวจสอบ status รูปแบบตัวอักษรเล็ก/ใหญ่ให้ครอบคลุม
+        // โดยใช้เงื่อนไขตรวจสอบ status รูปแบบตัวอักษรเล็ก/ใหญ่ให้ครอบคลุม (คงการเช็คเฉพาะ Following และ Forecast ตามเจตนาเดิมของระบบแจ้งเตือนงานค้าง)
         $pendingDealsCount = 0;
         if (Auth::check()) {
             $pendingQuery = SalesDeal::whereIn('status', ['following', 'Following', 'forecast', 'Forecast']);
@@ -102,8 +132,8 @@ class SalesDealController extends Controller
         // ➕ ตรวจสอบสถานะว่าพนักงานคนนี้เคยากดรับทราบการแจ้งเตือนงานขายไปหรือยังจาก Session
         $showAlert = !session()->has('deal_alert_dismissed');
 
-        // 🟢 ส่งค่าทั้งหมด (รวมถึง $customerType) กลับไปแสดงผลที่ View
-        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear', 'customerType', 'pendingDealsCount', 'showAlert'));
+        // 🟢 ส่งค่าทั้งหมด (รวมถึง $mainStatuses และ $searchCompany) กลับไปแสดงผลที่ View
+        return view('deals.index', compact('deals', 'status', 'salesPersons', 'selectedSalesPerson', 'selectedMonth', 'selectedYear', 'customerType', 'searchCompany', 'mainStatuses', 'pendingDealsCount', 'showAlert'));
     }
 
     // หน้าฟอร์มสร้างดีลงานขายใหม่
@@ -116,7 +146,21 @@ class SalesDealController extends Controller
         });
         
         $courses = Course::all(); // ดึงรายชื่อคอร์สไปให้เลือกใน Dropdown
-        return view('deals.create', compact('customers', 'courses'));
+
+        // ➕ ดึงข้อมูลจาก 4 ตาราง Master Data เพื่อนำไปใช้ในหน้าสร้างดีล
+        $subStatuses = SubStatus::orderBy('name', 'asc')->get();
+        $customerGroups = CustomerGroup::orderBy('name', 'asc')->get();
+        $categories = MasterCategory::orderBy('name', 'asc')->get();
+        $channels = MasterChannel::orderBy('name', 'asc')->get();
+
+        // 📊 [ส่วนที่เพิ่มใหม่] ดึงข้อมูลสำหรับ Dropdown ไดนามิก 3 ตัวแปรใหม่ไปใช้ใน View
+        $groups = CustomerGroup::orderBy('name', 'asc')->get();
+        $progresses = SubStatus::orderBy('name', 'asc')->get();
+
+        // 🔄 ดึงข้อมูลสถานะหลักจากตารางฐานข้อมูลจริงแทนการ Hardcode Array เดิม
+        $mainStatuses = MainStatus::orderBy('id', 'asc')->get();
+
+        return view('deals.create', compact('customers', 'courses', 'subStatuses', 'customerGroups', 'categories', 'channels', 'groups', 'progresses', 'mainStatuses'));
     }
 
     // บันทึกดีลและไอเท็มสินค้าลงฐานข้อมูล
@@ -126,15 +170,39 @@ class SalesDealController extends Controller
         $request->validate([
             'customer_id'      => 'required',
             'deal_date'        => 'nullable',
-            'status'           => 'required|string',
+            'status'           => 'nullable', // 🟢 ปลดล็อคจาก required 
         ]);
 
         // 1. บันทึกข้อมูลดีลหลัก
-        // ตรวจสอบ user_id ให้ปลอดภัย ถ้าล็อกอินให้ใช้ ID คนนั้น ถ้าไม่มีตรวจสอบในตาราง users เสมอ
         $userId = Auth::check() ? Auth::id() : 1;
-
-        // ดักจับ: หากในฟอร์มไม่มีการเลือกวันที่มา ให้ดึงวันที่ปัจจุบัน (Y-m-d) ไปใช้งานเพื่อไม่ให้เกิด Errorในฐานข้อมูล
         $dealDate = $request->deal_date ?: now()->format('Y-m-d');
+
+        // 🟢 ระบบกรองและแปลงค่าสถานะแบบเด็ดขาด (ป้องกันการเซฟผิด 100%)
+        $newStatus = 'Following'; // ค่าเริ่มต้น
+        if ($request->filled('status')) {
+            $rawStatus = $request->status;
+            if (is_numeric($rawStatus)) {
+                if ($rawStatus == 3) { $newStatus = 'Closed Sale'; }
+                elseif ($rawStatus == 1) { $newStatus = 'Following'; }
+                elseif ($rawStatus == 2) { $newStatus = 'Forecast'; }
+                elseif ($rawStatus == 4) { $newStatus = 'Denied'; }
+            } else {
+                $statusStr = '';
+                if (is_array($rawStatus) && isset($rawStatus['name'])) {
+                    $statusStr = strtolower($rawStatus['name']);
+                } elseif (is_object($rawStatus) && isset($rawStatus->name)) {
+                    $statusStr = strtolower($rawStatus->name);
+                } elseif (is_string($rawStatus)) {
+                    $statusStr = strtolower($rawStatus);
+                }
+
+                if (str_contains($statusStr, 'close')) { $newStatus = 'Closed Sale'; }
+                elseif (str_contains($statusStr, 'follow')) { $newStatus = 'Following'; }
+                elseif (str_contains($statusStr, 'forecast')) { $newStatus = 'Forecast'; }
+                elseif (str_contains($statusStr, 'denied')) { $newStatus = 'Denied'; }
+                else { $newStatus = is_string($rawStatus) ? $rawStatus : 'Following'; }
+            }
+        }
 
         // 💡 แก้ไข: นำฟิลด์ total_revenue ออก เพื่อไม่ให้เกิด Error: Column not found 1054 เนื่องจากใช้ระบบรวมยอดจากตารางย่อยแทน
         $deal = SalesDeal::create([
@@ -145,7 +213,7 @@ class SalesDealController extends Controller
             'category'      => $request->category,
             'tools'         => $request->tools,
             'promotion'     => $request->promotion,
-            'status'        => $request->status,
+            'status'        => $newStatus, // 🟢 บันทึกค่าที่แปลงเสร็จแล้ว
             'progress'      => $request->progress,
             'receipt_no'    => $request->receipt_no,
             'updated_note'  => $request->updated_note,
@@ -158,7 +226,7 @@ class SalesDealController extends Controller
     // หน้าฟอร์มแก้ไขดีลงานขาย
     public function edit(SalesDeal $deal)
     {
-        // 🟢 โหลดข้อมูลประวัติและชื่อคนที่อัปเดตแนบมาด้วย
+        // 🟢 โหล่งข้อมูลประวัติและชื่อคนที่อัปเดตแนบมาด้วย
         $deal->load(['logs.user', 'customer']);
 
         // 🎯 ดึงข้อมูลลูกค้ามาต่อท้ายด้วยจำนวนคน เพื่อให้เลือกในหน้าแก้ไขได้ง่ายๆ เช่นกัน
@@ -184,28 +252,65 @@ class SalesDealController extends Controller
             }
         }
 
+        // ➕ ดึงข้อมูลจาก 4 ตาราง Master Data เพื่อนำไปใช้ในหน้าแก้ไขดีล
+        $subStatuses = SubStatus::orderBy('name', 'asc')->get();
+        $customerGroups = CustomerGroup::orderBy('name', 'asc')->get();
+        $categories = MasterCategory::orderBy('name', 'asc')->get();
+        $channels = MasterChannel::orderBy('name', 'asc')->get();
+
+        // 📊 [ส่วนที่เพิ่มใหม่] ดึงข้อมูลสำหรับ Dropdown ไดนามิก 3 ตัวแปรใหม่ไปใช้ใน View หน้าแก้ไข ป้องกัน Error Undefined variable
+        $groups = CustomerGroup::orderBy('name', 'asc')->get();
+        $progresses = SubStatus::orderBy('name', 'asc')->get();
+
+        // 🔄 ดึงข้อมูลสถานะหลักจากตารางฐานข้อมูลจริงแทนการ Hardcode Array เดิม ป้องกัน Error ในหน้าแก้ไข
+        $mainStatuses = MainStatus::orderBy('id', 'asc')->get();
+
         // ส่งตัวแปรเดิมไปใช้งานที่ View อย่างครบถ้วนตามหลัก Route Model Binding พร้อมส่ง $additional_names ไปวนลูปเพิ่ม
-        return view('deals.edit', compact('deal', 'customers', 'additional_names'));
+        return view('deals.edit', compact('deal', 'customers', 'additional_names', 'subStatuses', 'customerGroups', 'categories', 'channels', 'groups', 'progresses', 'mainStatuses'));
     }
 
     // อัปเดตข้อมูลดีลงานขายลงฐานข้อมูล
     public function update(Request $request, SalesDeal $deal)
     {
-        // ปรับปรุง Validation ให้ยืดหยุ่นรองรับฟิลด์อัปเดตสถานะใหม่ และไม่ติด Error เรื่อง customer_id (กรณีแสดงเป็น text บนหน้าจอ)
+        // 🟢 ปลดล็อค Validation ให้ยืดหยุ่น ป้องกันระบบตีกลับเงียบๆ
         $request->validate([
             'customer_id'      => 'nullable',
             'deal_date'        => 'nullable',
-            'status'           => 'required|string',
-            'progress'         => 'nullable|string|max:255', // แก้ไขตรงนี้: ปลดล็อกจาก integer เป็น string เพื่อรองรับข้อความ
+            'status'           => 'nullable', // เปลี่ยนเป็น nullable 
+            'progress'         => 'nullable|string|max:255',
         ]);
 
-        // 🟢 1. ดึงสถานะเดิมมาเก็บไว้เทียบก่อนอัปเดต
         $oldStatus = $deal->status;
         $note = $request->updated_note ?? $request->note;
-
-        // ดักจับ: หากไม่มีการส่งวันที่หรือลูกค้ามาใหม่ ให้คงค่าเดิมในฐานข้อมูลไว้
         $dealDate = $request->deal_date ?: $deal->deal_date;
         $customerId = $request->customer_id ?: $deal->customer_id;
+
+        // 🟢 ระบบกรองและแปลงค่าสถานะแบบเด็ดขาด (ป้องกันการเซฟผิด 100%)
+        $newStatus = $oldStatus;
+        if ($request->filled('status')) {
+            $rawStatus = $request->status;
+            if (is_numeric($rawStatus)) {
+                if ($rawStatus == 3) { $newStatus = 'Closed Sale'; }
+                elseif ($rawStatus == 1) { $newStatus = 'Following'; }
+                elseif ($rawStatus == 2) { $newStatus = 'Forecast'; }
+                elseif ($rawStatus == 4) { $newStatus = 'Denied'; }
+            } else {
+                $statusStr = '';
+                if (is_array($rawStatus) && isset($rawStatus['name'])) {
+                    $statusStr = strtolower($rawStatus['name']);
+                } elseif (is_object($rawStatus) && isset($rawStatus->name)) {
+                    $statusStr = strtolower($rawStatus->name);
+                } elseif (is_string($rawStatus)) {
+                    $statusStr = strtolower($rawStatus);
+                }
+
+                if (str_contains($statusStr, 'close')) { $newStatus = 'Closed Sale'; }
+                elseif (str_contains($statusStr, 'follow')) { $newStatus = 'Following'; }
+                elseif (str_contains($statusStr, 'forecast')) { $newStatus = 'Forecast'; }
+                elseif (str_contains($statusStr, 'denied')) { $newStatus = 'Denied'; }
+                else { $newStatus = is_string($rawStatus) ? $rawStatus : $oldStatus; }
+            }
+        }
 
         // 💡 แก้ไข: เอาฟิลด์คำว่า 'note' ออก เพราะตารางนี้ใช้คอลัมน์ 'updated_note' ในการเก็บข้อมูลบันทึกข้อความย่อยเท่านั้นป้องกัน Error 1054
         $deal->update([
@@ -213,19 +318,19 @@ class SalesDealController extends Controller
             'deal_date'     => $dealDate,
             'group'         => $request->group ?? $deal->group,
             'category'      => $request->category ?? $deal->category,
-            'status'        => $request->status,
+            'status'        => $newStatus, // 🟢 บันทึกเป็นข้อความลง DB 
             'progress'      => $request->progress ?? $deal->progress,
             'receipt_no'    => $request->receipt_no ?? $deal->receipt_no,
             'updated_note'  => $request->updated_note ?? $request->note ?? $deal->updated_note,
         ]);
 
         // 🟢 2. บันทึกประวัติ (Log) เมื่อสถานะเปลี่ยน หรือมีการพิมพ์ข้อความโน้ต
-        if ($oldStatus != $request->status || !empty($note)) {
+        if ($oldStatus != $newStatus || !empty($note)) {
             DealLog::create([
                 'sales_deal_id' => $deal->id,
                 'user_id'       => Auth::id() ?? 1,
                 'old_status'    => $oldStatus,
-                'new_status'    => $request->status,
+                'new_status'    => $newStatus, // 🟢 บันทึกประวัติตามค่าที่แปลงแล้ว
                 'note'          => $note
             ]);
         }
@@ -420,10 +525,7 @@ class SalesDealController extends Controller
         return redirect()->route('deals.items', $id)->with('success', 'เพิ่มรายการคอร์สเรียนเข้าไปในดีลนี้และอัปเดตยอดเงินรวมเรียบร้อยแล้ว!');
     }
 
-    /**
-     * ฟังก์ชันเพิ่มเติมสำหรับรองรับ Route ชื่อ deals.items
-     * เพื่อดึงข้อมูลเข้าสู่หน้า deals.items ได้อย่างสมบูรณ์แบบ
-     */
+    // items
     public function items($id)
     {
         // โหลดข้อมูลดีลพ่วงข้อมูลประวัติความสัมพันธ์ activityLogs.user เข้าไปด้วยเพื่อส่งไปแสดงผลที่ View หน้าจัดการดีลได้
@@ -449,9 +551,7 @@ class SalesDealController extends Controller
         return view('deals.items', compact('deal', 'courses', 'courseOptions', 'additional_names'));
     }
 
-    /**
-     * ฟังก์ชันสำหรับลบรายการคอร์สเรียนย่อยออกจากดีล (เพิ่มใหม่สำหรับระบบลบไอเท็ม)
-     */
+    // destroyItem
     public function destroyItem($id)
     {
         $item = DealItem::findOrFail($id);
@@ -472,18 +572,14 @@ class SalesDealController extends Controller
         return redirect()->route('deals.items', $dealId)->with('success', 'ลบรายการคอร์สเรียนออกจากดีลและคำนวณยอดเงินรวมใหม่เรียบร้อยแล้ว!');
     }
 
-    /**
-     * 🌟 ฟังก์ชันเปิดหน้าพิมพ์ใบเสนอราคา (Quotation Layout)
-     */
+    // printQuotation
     public function printQuotation($id)
     {
         $deal = SalesDeal::with(['customer', 'dealItems.course'])->findOrFail($id);
         return view('deals.quotation', compact('deal'));
     }
 
-    /**
-     * ➕ ส่วนที่เพิ่มใหม่: ฟังก์ชันสำหรับบันทึก Session เมื่อ User กดปุ่มรับทราบแจ้งเตือน
-     */
+    // dismissAlert
     public function dismissAlert()
     {
         session(['deal_alert_dismissed' => true]);

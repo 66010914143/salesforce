@@ -111,4 +111,14 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy'); 
 
+    // ==========================================
+    // เพิ่มใหม่: ระบบจัดการตัวเลือก Dropdown (Master Data) สำหรับ Admin
+    // ==========================================
+    Route::prefix('admin/master-data')->name('admin.master-data.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\MasterDataController::class, 'index'])->name('index');
+        Route::post('/store/{type}', [\App\Http\Controllers\Admin\MasterDataController::class, 'store'])->name('store');
+        Route::put('/update/{type}/{id}', [\App\Http\Controllers\Admin\MasterDataController::class, 'update'])->name('update');
+        Route::delete('/destroy/{type}/{id}', [\App\Http\Controllers\Admin\MasterDataController::class, 'destroy'])->name('destroy');
+    });
+
 });

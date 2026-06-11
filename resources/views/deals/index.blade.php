@@ -161,33 +161,22 @@
             <span class="font-semibold text-gray-750 text-sm">เครื่องมือคัดกรอง: เลือกดูงานขายตามเงื่อนไข</span>
         </div>
         
-        <form action="{{ route('deals.index') }}" method="GET" class="flex flex-wrap items-center gap-3 w-full">
-            @if($status ?? request('status'))
-                <input type="hidden" name="status" value="{{ $status ?? request('status') }}">
-            @endif
+        <form id="autoSubmitForm" action="{{ route('deals.index') }}" method="GET" class="flex flex-wrap items-center gap-3 w-full">
             
-            <div class="w-full sm:w-auto min-w-[240px] flex-1 sm:flex-none">
-                <select name="search_company" id="company-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+            <div class="w-full sm:w-auto min-w-[220px] flex-1 sm:flex-none">
+                <select name="search_company" id="company-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
                     <option value="">-- 🔍 ค้นหาชื่อบริษัท... --</option>
                     @foreach($uniqueCompanies as $companyName)
-                        <option value="{{ $companyName }}" {{ request('search_company') == $companyName ? 'selected' : '' }}>
+                        <option value="{{ $companyName }}" {{ (request('search_company') ?? $searchCompany ?? '') == $companyName ? 'selected' : '' }}>
                             {{ $companyName }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="w-full sm:w-auto min-w-[160px] flex-1 sm:flex-none">
-                <select name="customer_type" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
-                    <option value="">-- ทุกประเภทลูกค้า --</option>
-                    <option value="organization" {{ request('customer_type') == 'organization' ? 'selected' : '' }}>🏢 องค์กร / บริษัท</option>
-                    <option value="individual" {{ request('customer_type') == 'individual' ? 'selected' : '' }}>👤 บุคคลธรรมดา</option>
-                </select>
-            </div>
-
             @if(auth()->check() && (auth()->user()->isAdmin() || strtolower(auth()->user()->role) === 'manager'))
-                <div class="w-full sm:w-auto min-w-[220px] flex-1 sm:flex-none">
-                    <select name="sales_person_id" id="sales-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+                <div class="w-full sm:w-auto min-w-[200px] flex-1 sm:flex-none">
+                    <select name="sales_person_id" id="sales-search-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
                         <option value="">-- แสดงพนักงานทุกคน --</option>
                         @foreach($salesPersons as $person)
                             <option value="{{ $person->id }}" {{ (request('sales_person_id') ?? $selectedSalesPerson ?? '') == $person->id ? 'selected' : '' }}>
@@ -198,8 +187,30 @@
                 </div>
             @endif
 
+            <div class="w-full sm:w-auto min-w-[160px] flex-1 sm:flex-none">
+                <select name="status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
+                    <option value="">-- สถานะทั้งหมด --</option>
+                    @php
+                        $availableStatuses = ['Closed Sale', 'Following', 'Forecast'];
+                    @endphp
+                    @foreach($availableStatuses as $vStatus)
+                        <option value="{{ $vStatus }}" {{ (request('status') ?? $status ?? '') == $vStatus ? 'selected' : '' }}>
+                            {{ $vStatus }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="w-full sm:w-auto min-w-[140px] flex-1 sm:flex-none">
-                <select name="month" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+                <select name="customer_type" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
+                    <option value="">-- ทุกประเภท --</option>
+                    <option value="organization" {{ (request('customer_type') ?? $customerType ?? '') == 'organization' ? 'selected' : '' }}>🏢 องค์กร</option>
+                    <option value="individual" {{ (request('customer_type') ?? $customerType ?? '') == 'individual' ? 'selected' : '' }}>👤 บุคคล</option>
+                </select>
+            </div>
+
+            <div class="w-full sm:w-auto min-w-[120px] flex-1 sm:flex-none">
+                <select name="month" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
                     <option value="">-- ทุกเดือน --</option>
                     @php
                         $months = [
@@ -214,27 +225,24 @@
                 </select>
             </div>
 
-            <div class="w-full sm:w-auto min-w-[120px] flex-1 sm:flex-none">
-                <select name="year" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]">
+            <div class="w-full sm:w-auto min-w-[100px] flex-1 sm:flex-none">
+                <select name="year" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 w-full cursor-pointer h-[42px]" onchange="document.getElementById('autoSubmitForm').submit();">
                     <option value="">-- ทุกปี --</option>
                     @php
                         $currentYear = date('Y');
                     @endphp
                     @for($y = $currentYear + 1; $y >= $currentYear - 5; $y--)
                         <option value="{{ $y }}" {{ (request('year') ?? $selectedYear ?? '') == $y ? 'selected' : '' }}>
-                            พ.ศ. {{ $y + 543 }} ({{ $y }})
+                            {{ $y + 543 }}
                         </option>
                     @endfor
                 </select>
             </div>
             
-            <div class="flex items-center gap-2">
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors h-[42px] whitespace-nowrap shadow-sm">
-                    ค้นหา
-                </button>
-                @if(request('search_company') || request('customer_type') || request('sales_person_id') || request('month') || request('year'))
-                    <a href="{{ route('deals.index', ['status' => $status ?? request('status')]) }}" class="text-xs text-rose-500 hover:underline flex items-center gap-1 whitespace-nowrap ml-1" title="ล้างการกรองทั้งหมด">
-                        <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรอง
+            <div class="flex items-center gap-2 ml-auto">
+                @if(request('search_company') || request('customer_type') || request('sales_person_id') || request('month') || request('year') || request('status') || isset($selectedMonth) || isset($selectedYear) || isset($searchCompany))
+                    <a href="{{ route('deals.index') }}" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg text-sm px-4 py-2.5 text-center transition-colors h-[42px] whitespace-nowrap shadow-sm border border-rose-200" title="ล้างการกรองทั้งหมด">
+                        <i class="fa-solid fa-rotate-left"></i> ล้างการค้นหา
                     </a>
                 @endif
             </div>
@@ -242,19 +250,19 @@
     </div>
 
     <div class="flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('deals.index', ['customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
+        <a href="{{ route('deals.index', ['customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ !($status ?? request('status')) ? 'bg-slate-800 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' }}">
             ทั้งหมด
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Closed Sale', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Closed Sale' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-gray-200 hover:bg-emerald-50' }}">
             Closed Sale
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Following', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Following', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Following' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-gray-200 hover:bg-blue-50' }}">
             Following
             @if($followingBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $followingBadge }}</span>
             @endif
         </a>
-        <a href="{{ route('deals.index', ['status' => 'Forecast', 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
+        <a href="{{ route('deals.index', ['status' => 'Forecast', 'customer_type' => (request('customer_type') ?? $customerType ?? ''), 'sales_person_id' => (request('sales_person_id') ?? $selectedSalesPerson ?? ''), 'month' => (request('month') ?? $selectedMonth ?? ''), 'year' => (request('year') ?? $selectedYear ?? ''), 'search_company' => (request('search_company') ?? $searchCompany ?? '')]) }}" class="flex items-center px-4 py-2 rounded-lg font-medium transition-colors {{ ($status ?? request('status')) == 'Forecast' ? 'bg-amber-600 text-white' : 'bg-white text-amber-600 border border-gray-200 hover:bg-amber-50' }}">
             Forecast
             @if($forecastBadge > 0)
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[20px] px-1.5 py-0.5 text-[11px] font-bold text-red-600 bg-red-100 rounded-full border border-red-200 animate-pulse">{{ $forecastBadge }}</span>
@@ -268,7 +276,9 @@
                 <thead>
                     <tr class="bg-slate-50 border-b border-gray-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
                         <th class="px-6 py-4">บริษัทลูกค้า</th>
-                        <th class="px-6 py-4">พนักงาน</th> <th class="px-6 py-4">คอร์ส / สินค้า</th>
+                        <th class="px-6 py-4">พนักงาน</th> 
+                        <th class="px-6 py-4">คอร์ส / สินค้า</th>
+                        <th class="px-6 py-4">วันที่บันทึก</th> 
                         <th class="px-6 py-4 text-right">ราคา/คน</th>
                         <th class="px-6 py-4 text-center">จำนวนคน</th>
                         <th class="px-6 py-4 text-right">ยอดเงินรวม</th>
@@ -281,17 +291,14 @@
                     @forelse($deals as $deal)
                         @php 
                             $item = $deal->dealItems->first(); 
-                            // คำนวณยอดรวมของการขายนี้สดๆ จากทุกคอร์สรวมกัน
                             $dealTotal = 0;
                             $itemsFormattedArray = [];
                             foreach($deal->dealItems as $dItem) {
-                                // 🛠️ ดึงตัวแปรส่วนลดให้ตรงกับ Database
                                 $itemDiscount = $dItem->discount ?? $dItem->discount_per_person ?? 0;
                                 $itemTotal = ($dItem->price_per_person - $itemDiscount) * $dItem->total_person;
                                 if($itemTotal < 0) $itemTotal = 0;
                                 $dealTotal += $itemTotal;
 
-                                // บันทึกข้อมูลคอร์สย่อยเก็บไว้ส่งเข้า Modal Popup
                                 $itemsFormattedArray[] = [
                                     'course_name' => $dItem->course->course_name ?? 'ไม่ระบุ',
                                     'price_per_person' => number_format($dItem->price_per_person, 2),
@@ -327,6 +334,11 @@
                                     <span class="text-gray-400 italic">ยังไม่มีคอร์ส</span>
                                 @endif
                             </td>
+                            
+                            <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
+                                {{ $deal->deal_date ? \Carbon\Carbon::parse($deal->deal_date)->addYears(543)->format('d/m/Y') : ($deal->created_at ? \Carbon\Carbon::parse($deal->created_at)->addYears(543)->format('d/m/Y') : '-') }}
+                            </td>
+
                             <td class="px-6 py-4 text-right text-gray-600">
                                 {{ $item ? '฿'.number_format($item->price_per_person ?? 0, 2) : '-' }}
                             </td>
@@ -389,6 +401,7 @@
                                                 'receipt_no' => $deal->receipt_no,
                                                 'note' => $deal->updated_note ?? $deal->note ?? '-',
                                                 'total_amount' => number_format($dealTotal, 2),
+                                                'deal_date' => $deal->deal_date ? \Carbon\Carbon::parse($deal->deal_date)->format('Y-m-d') : ($deal->created_at ? \Carbon\Carbon::parse($deal->created_at)->format('Y-m-d') : ''),
                                                 'closed_date' => $deal->status == 'Closed Sale' ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->format('d/m/Y') : '-',
                                                 'updated_at' => $deal->updated_at ? \Carbon\Carbon::parse($deal->updated_at)->setTimezone('Asia/Bangkok')->addYears(543)->format('d/m/Y H:i') . ' น.' : '-',
                                                 'items' => $itemsFormattedArray
@@ -420,7 +433,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-gray-400"> <i class="fa-solid fa-file-circle-xmark text-3xl mb-2 block"></i>
+                            <td colspan="10" class="px-6 py-12 text-center text-gray-400"> <i class="fa-solid fa-file-circle-xmark text-3xl mb-2 block"></i>
                                 ยังไม่มีการเปิดการขายในระบบ (หรือไม่มีข้อมูลตามเงื่อนไขที่คุณค้นหา)
                             </td>
                         </tr>
@@ -431,7 +444,14 @@
         
         @if(method_exists($deals, 'hasPages') && $deals->hasPages())
             <div class="p-4 border-t border-gray-100 bg-slate-50">
-                {{ $deals->appends(['status' => $status ?? request('status'), 'customer_type' => request('customer_type'), 'sales_person_id' => request('sales_person_id'), 'month' => request('month'), 'year' => request('year'), 'search_company' => request('search_company')])->links() }}
+                {{ $deals->appends([
+                    'status' => $status ?? request('status'), 
+                    'customer_type' => request('customer_type') ?? $customerType ?? '', 
+                    'sales_person_id' => request('sales_person_id') ?? $selectedSalesPerson ?? '', 
+                    'month' => request('month') ?? $selectedMonth ?? '', 
+                    'year' => request('year') ?? $selectedYear ?? '', 
+                    'search_company' => request('search_company') ?? $searchCompany ?? ''
+                ])->links() }}
             </div>
         @endif
     </div>
@@ -484,6 +504,7 @@
                         <thead>
                             <tr class="bg-slate-50 border-b border-gray-100 text-slate-600 font-bold">
                                 <th class="px-4 py-2.5">คอร์ส / สินค้า</th>
+                                <th class="px-4 py-2.5">วันที่บันทึก</th> 
                                 <th class="px-4 py-2.5 text-right">ราคา/คน</th>
                                 <th class="px-4 py-2.5 text-center">จำนวนคน</th>
                                 <th class="px-4 py-2.5 text-right">ส่วนลด</th>
@@ -494,7 +515,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="bg-slate-50 font-bold border-t border-gray-100 text-slate-900">
-                                <td colspan="4" class="px-4 py-3 text-right text-sm">ยอดเงินรวมทั้งหมด:</td>
+                                <td colspan="5" class="px-4 py-3 text-right text-sm">ยอดเงินรวมทั้งหมด:</td> 
                                 <td id="modalTotalAmount" class="px-4 py-3 text-right text-sm text-indigo-600 font-extrabold">-</td>
                             </tr>
                         </tfoot>
@@ -524,54 +545,49 @@
 
 <script>
     $(document).ready(function() {
-        // ให้ช่องค้นหาชื่อบริษัทสามารถพิมพ์เพื่อค้นหาแบบคัดกรองตัวอักษรได้เหมือนพนักงาน
         if ($('#company-search-select').length) {
             $('#company-search-select').select2({
                 placeholder: "-- 🔍 ค้นหาชื่อบริษัท... --",
                 allowClear: true,
                 width: '100%'
+            }).on('select2:select select2:unselect', function (e) {
+                document.getElementById('autoSubmitForm').submit();
             });
         }
 
-        // ให้ช่องค้นหาพนักงานสามารถพิมพ์ชื่อได้
         if ($('#sales-search-select').length) {
             $('#sales-search-select').select2({
-                placeholder: "-- พิมพ์เพื่อค้นหาชื่อพนักงาน --",
+                placeholder: "-- แสดงพนักงานทุกคน --",
                 allowClear: true,
                 width: '100%'
+            }).on('select2:select select2:unselect', function (e) {
+                document.getElementById('autoSubmitForm').submit();
             });
         }
 
-        // เปิดโอกาสให้ปิดเมื่อคลิกพื้นหลังสีดำรอบๆ ตัว Popup
         $('#viewDealModal').on('click', function(e) {
             if (e.target === this) {
                 closeViewDealModal();
             }
         });
 
-        // 🔔 ตรวจสอบสถานะการกดรับทราบแจ้งเตือนผ่าน localStorage โดยอ้างอิงจากยอดรวมงานค้าง
         const currentPendingCount = parseInt("{{ $totalPendingCount }}") || 0;
         const alertBox = document.getElementById('deal-alert-container');
 
         if (alertBox && currentPendingCount > 0) {
             const savedCount = localStorage.getItem('acknowledged_deals_count');
             
-            // ถ้าค่าในระบบไม่เท่ากับจำนวนที่เคยกดรับทราบไว้ (แปลว่ามีงานเพิ่มขึ้นหรือลดลง) -> ให้เด้งแสดงกล่องเตือนใหม่ทันที
             if (savedCount === null || parseInt(savedCount) !== currentPendingCount) {
                 alertBox.classList.remove('hidden');
             }
         }
 
-        // 🔔 ระบบส่งข้อมูลเมื่อกดปุ่ม "รับทราบ"
         const btnAckAlert = document.getElementById('btn-acknowledge-alert');
         if (btnAckAlert) {
             btnAckAlert.addEventListener('click', function() {
                 const alertContainer = this.closest('#deal-alert-container');
-                
-                // เก็บจำนวนงานค้างรอบนี้ลงเครื่องผู้ใช้เพื่อระบุว่ารับทราบยอดจำนวนนี้แล้ว
                 localStorage.setItem('acknowledged_deals_count', currentPendingCount);
 
-                // ยิงไปแจ้งหลังบ้านตามตรรกะเดิม
                 fetch("{{ route('deals.acknowledgeAlert') }}", {
                     method: 'POST',
                     headers: {
@@ -588,22 +604,15 @@
                             alertContainer.style.transform = 'translateY(-10px)';
                             setTimeout(() => alertContainer.remove(), 400);
                         }
-                    } else {
-                        console.error('ไม่สามารถอัปเดตสถานะการรับทราบไปยังเซิร์ฟเวอร์ได้');
                     }
-                })
-                .catch(error => {
-                    console.error('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย:', error);
                 });
             });
         }
     });
 
-    // 🟢 ฟังก์ชันควบคุมเปิดใช้งาน Popup Modal และนำข้อมูลมาแปะลง UI สดๆ
     function openViewDealModal(element) {
         let data = $(element).data('deal-info');
 
-        // บันทึกข้อมูลหลัก
         $('#modalCompanyName').text(data.company_name);
         if (data.group && data.group.trim() !== '') {
             $('#modalGroupBadge').text('📁 กลุ่ม: ' + data.group).removeClass('hidden');
@@ -614,11 +623,9 @@
         $('#modalNote').text(data.note || '-');
         $('#modalTotalAmount').text('฿' + data.total_amount);
 
-        // จัดแจง Badge สถานะ และแสดง/ซ่อนวันที่ปิดการขาย
         let statusHtml = '';
         if (data.status === 'Closed Sale') {
             statusHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Closed Sale</span>`;
-            
             if(data.closed_date && data.closed_date !== '-') {
                 $('#modalClosedDate').text(data.closed_date);
                 $('#modalClosedDateContainer').removeClass('hidden').addClass('block');
@@ -633,14 +640,11 @@
             $('#modalClosedDateContainer').addClass('hidden').removeClass('block');
         }
 
-        // เพิ่มวันที่และเวลาอัปเดตล่าสุด ต่อท้าย Badge สถานะ
         if(data.updated_at && data.updated_at !== '-') {
             statusHtml += `<div class="mt-2 text-[11px] text-gray-500 font-medium">🕒 อัปเดตล่าสุด: ${data.updated_at}</div>`;
         }
-
         $('#modalStatusContainer').html(statusHtml);
 
-        // จัดแจง Badge ความคืบหน้า
         let progressHtml = '';
         if (data.status === 'Closed Sale') {
             progressHtml = `<span class="inline-flex items-center text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">🎉 ปิดการขายสำเร็จ</span>`;
@@ -651,7 +655,6 @@
         }
         $('#modalProgressContainer').html(progressHtml);
 
-        // เลขที่ใบเสร็จ
         if (data.receipt_no && data.receipt_no.trim() !== '') {
             $('#modalReceiptNo').text(data.receipt_no);
             $('#modalReceiptContainer').removeClass('hidden');
@@ -659,13 +662,24 @@
             $('#modalReceiptContainer').addClass('hidden');
         }
 
-        // วนลูปวาดตารางรายการคอร์สทั้งหมด
+        let formattedDealDate = '-';
+        if (data.deal_date) {
+            let d = new Date(data.deal_date);
+            if (!isNaN(d.getTime())) {
+                let day = String(d.getDate()).padStart(2, '0');
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let year = d.getFullYear() + 543; 
+                formattedDealDate = `${day}/${month}/${year}`;
+            }
+        }
+
         let tableRows = '';
         if (data.items && data.items.length > 0) {
             data.items.forEach(function(item) {
                 tableRows += `
                     <tr class="hover:bg-slate-50/50 transition-colors">
                         <td class="px-4 py-2.5 font-medium text-slate-900">${item.course_name}</td>
+                        <td class="px-4 py-2.5 text-left text-gray-600 whitespace-nowrap">${formattedDealDate}</td> 
                         <td class="px-4 py-2.5 text-right text-gray-600">฿${item.price_per_person}</td>
                         <td class="px-4 py-2.5 text-center text-gray-600 font-semibold">${item.total_person}</td>
                         <td class="px-4 py-2.5 text-right text-rose-600">฿${item.discount}</td>
@@ -674,16 +688,14 @@
                 `;
             });
         } else {
-            tableRows = `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-400 italic">ไม่มีข้อมูลรายการสินค้า</td></tr>`;
+            tableRows = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">ไม่มีข้อมูลรายการสินค้า</td></tr>`; 
         }
         $('#modalItemsTableBody').html(tableRows);
 
-        // แสดงผลหน้าจอ Popup ขึ้นมา
         $('#viewDealModal').removeClass('hidden').addClass('flex');
-        $('body').addClass('overflow-hidden'); // บล็อกไม่ให้หน้าข้างหลังเลื่อนได้ขณะเปิดดูงาน
+        $('body').addClass('overflow-hidden');
     }
 
-    // 🔴 ฟังก์ชันปิดการใช้งาน Popup Modal
     function closeViewDealModal() {
         $('#viewDealModal').addClass('hidden').removeClass('flex');
         $('body').removeClass('overflow-hidden');

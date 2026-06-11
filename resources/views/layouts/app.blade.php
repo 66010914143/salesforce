@@ -32,9 +32,7 @@
             <div class="h-16 flex items-center px-6 bg-slate-950 border-b border-slate-800 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent"></div>
                 
-                <div class="relative flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 mr-3 shrink-0">
-                    <i class="fa-solid fa-arrow-trend-up text-base"></i>
-                </div>
+                <img src="{{ asset('images/my-logo.png') }}?v={{ time() }}" alt="Logo" class="relative w-9 h-9 object-contain rounded-lg mr-3 shrink-0">
                 
                 <div class="relative flex flex-col justify-center">
                     <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 text-xl tracking-tight leading-none mb-0.5">Sale Report</span>
@@ -79,6 +77,12 @@
                 @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ Request::is('users*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="fa-solid fa-users-gear mr-3 w-5 text-center text-slate-400"></i> จัดการพนักงานและสิทธิ์
+                </a>
+                @endif
+
+                @if(auth()->check() && auth()->user()->isAdmin())
+                <a href="{{ route('admin.master-data.index') }}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ Request::is('admin/master-data*') ? 'bg-slate-800 text-white' : '' }}">
+                    <i class="fa-solid fa-sliders mr-3 w-5 text-center text-slate-400"></i> ตั้งค่าข้อมูลระบบ (Dropdown)
                 </a>
                 @endif
             </nav>

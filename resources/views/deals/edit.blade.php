@@ -97,7 +97,7 @@
                                             @endif
                                         </ul>
                                     </div>
-                                    </div>
+                                </div>
                             </div>
                         @endif
                     </div>
@@ -118,21 +118,40 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">หมวดหมู่กลุ่ม (Group)</label>
                     <select name="group" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
-                        <option value="SME" {{ $deal->group == 'SME' ? 'selected' : '' }}>SME</option>
-                        <option value="Corporate" {{ $deal->group == 'Corporate' ? 'selected' : '' }}>Corporate</option>
-                        <option value="Government" {{ $deal->group == 'Government' ? 'selected' : '' }}>Government (หน่วยงานรัฐ)</option>
-                        <option value="Individual" {{ $deal->group == 'Individual' ? 'selected' : '' }}>Individual (บุคคลทั่วไป)</option>
+                        <option value="">-- เลือกกลุ่ม (Group) --</option>
+                        @foreach($groups as $group)
+                            @php 
+                                $groupVal = is_object($group) ? ($group->name ?? $group->value ?? '') : $group;
+                            @endphp
+                            <option value="{{ $groupVal }}" {{ $deal->group == $groupVal ? 'selected' : '' }}>{{ $groupVal }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">ประเภทงาน / หมวดหมู่ (Category)</label>
-                    <input type="text" name="category" value="{{ $deal->category }}" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="เช่น New (ลูกค้าใหม่), Renewal, Upsell">
+                    <select name="category" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        <option value="">-- เลือกประเภทงาน / หมวดหมู่ --</option>
+                        @foreach($categories as $category)
+                            @php 
+                                $categoryVal = is_object($category) ? ($category->name ?? $category->value ?? '') : $category;
+                            @endphp
+                            <option value="{{ $categoryVal }}" {{ $deal->category == $categoryVal ? 'selected' : '' }}>{{ $categoryVal }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">สถานะย่อย / ความคืบหน้า (Progress)</label>
-                    <input type="text" name="progress" value="{{ $deal->progress }}" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="เช่น ติดตามครั้งที่ 1, รอใบเสนอราคา, นัดเข้าพบ">
+                    <select name="progress" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        <option value="">-- เลือกสถานะย่อย / ความคืบหน้า --</option>
+                        @foreach($progresses as $progress)
+                            @php 
+                                $progressVal = is_object($progress) ? ($progress->name ?? $progress->value ?? '') : $progress;
+                            @endphp
+                            <option value="{{ $progressVal }}" {{ $deal->progress == $progressVal ? 'selected' : '' }}>{{ $progressVal }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
@@ -147,38 +166,65 @@
                 <label class="block text-sm font-bold text-gray-700 mb-3">สถานะการขายปัจจุบัน (Pipeline) <span class="text-red-500">*</span></label>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     
-                    <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none transition-all {{ $deal->status == 'Forecast' ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/30' : 'border-gray-200 hover:bg-gray-50' }}">
-                        <input type="radio" name="status" value="Forecast" class="sr-only" {{ $deal->status == 'Forecast' ? 'checked' : '' }} onchange="highlightRadio(this)">
-                        <span class="flex flex-1">
-                            <span class="flex flex-col">
-                                <span class="block text-sm font-bold text-amber-700">Forecast</span>
-                                <span class="mt-1 flex items-center text-xs text-gray-500">คาดการณ์ / รอดำเนินการ</span>
-                            </span>
-                        </span>
-                        <span class="check-icon absolute right-4 top-4 text-lg text-amber-500 {{ $deal->status == 'Forecast' ? 'block' : 'hidden' }}">✓</span>
-                    </label>
+                    @foreach($mainStatuses as $value => $label)
+                        @php
+                            // 🛠️ แก้ไขการดึงค่า Value ให้ส่งเป็น "ข้อความ" (String) ไปหลังบ้านเสมอ 
+                            // ป้องกันบักที่ฟอร์มส่งเลข ID (เช่น 1, 2, 3) กลับไป ทำให้ระบบหาชื่อสถานะไม่เจอ
+                            if (is_object($label)) {
+                                $actualLabel = $label->name ?? $label->label ?? '';
+                                $actualValue = $label->name ?? $label->id ?? '';
+                            } else {
+                                $actualLabel = $label;
+                                // แก้บักสำคัญตรงนี้: บังคับให้ใช้ชื่อสถานะเป็น Value เสมอ
+                                $actualValue = $label; 
+                            }
+                            
+                            $isCurrent = ($deal->status == $actualValue) || (is_object($label) && isset($deal->status) && $deal->status == ($label->name ?? ''));
+                            
+                            // รวมคำเพื่อใช้เช็กสีทั้งจาก ID และ Name ตัวอักษร
+                            $searchString = $actualLabel . ' ' . $actualValue;
+                            
+                            // ค่าเริ่มต้นสำหรับสเตตัสอื่นๆ (ที่เพิ่มมาใหม่) ให้เป็นสีเทา/ขาว
+                            $colorClass = $isCurrent ? 'border-slate-500 ring-1 ring-slate-500 bg-slate-50/30' : 'border-gray-200 hover:bg-gray-50';
+                            $textClass = 'text-gray-700';
+                            $subText = 'รอดำเนินการ';
+                            $checkColor = 'text-slate-500';
 
-                    <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none transition-all {{ $deal->status == 'Following' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/30' : 'border-gray-200 hover:bg-gray-50' }}">
-                        <input type="radio" name="status" value="Following" class="sr-only" {{ $deal->status == 'Following' ? 'checked' : '' }} onchange="highlightRadio(this)">
-                        <span class="flex flex-1">
-                            <span class="flex flex-col">
-                                <span class="block text-sm font-bold text-blue-700">Following</span>
-                                <span class="mt-1 flex items-center text-xs text-gray-500">กำลังติดตาม / เสนอราคา</span>
-                            </span>
-                        </span>
-                        <span class="check-icon absolute right-4 top-4 text-lg text-blue-500 {{ $deal->status == 'Following' ? 'block' : 'hidden' }}">✓</span>
-                    </label>
+                            // เช็กคำเพื่อลงสี 4 สเตตัสหลัก
+                            if (\Illuminate\Support\Str::contains($searchString, 'Forecast')) {
+                                $colorClass = $isCurrent ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/30' : 'border-gray-200 hover:bg-gray-50';
+                                $textClass = 'text-amber-700';
+                                $subText = 'คาดการณ์ / รอดำเนินการ';
+                                $checkColor = 'text-amber-500';
+                            } elseif (\Illuminate\Support\Str::contains($searchString, 'Following')) {
+                                $colorClass = $isCurrent ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/30' : 'border-gray-200 hover:bg-gray-50';
+                                $textClass = 'text-blue-700';
+                                $subText = 'กำลังติดตาม / เสนอราคา';
+                                $checkColor = 'text-blue-500';
+                            } elseif (\Illuminate\Support\Str::contains($searchString, 'Closed Sale')) {
+                                $colorClass = $isCurrent ? 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/30' : 'border-gray-200 hover:bg-gray-50';
+                                $textClass = 'text-emerald-700';
+                                $subText = 'ปิดการขายสำเร็จ (Won)';
+                                $checkColor = 'text-emerald-500';
+                            } elseif (\Illuminate\Support\Str::contains($searchString, 'Denied')) {
+                                $colorClass = $isCurrent ? 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/30' : 'border-gray-200 hover:bg-gray-50';
+                                $textClass = 'text-rose-700';
+                                $subText = 'ปฏิเสธ / ยกเลิก (Lost)';
+                                $checkColor = 'text-rose-500';
+                            }
+                        @endphp
 
-                    <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none transition-all {{ $deal->status == 'Closed Sale' ? 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/30' : 'border-gray-200 hover:bg-gray-50' }}">
-                        <input type="radio" name="status" value="Closed Sale" class="sr-only" {{ $deal->status == 'Closed Sale' ? 'checked' : '' }} onchange="highlightRadio(this)">
-                        <span class="flex flex-1">
-                            <span class="flex flex-col">
-                                <span class="block text-sm font-bold text-emerald-700">Closed Sale</span>
-                                <span class="mt-1 flex items-center text-xs text-gray-500">ปิดการขายสำเร็จ (Won)</span>
+                        <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none transition-all {{ $colorClass }}">
+                            <input type="radio" name="status" value="{{ $actualValue }}" data-label="{{ $actualLabel }}" class="sr-only" {{ $isCurrent ? 'checked' : '' }} onchange="highlightRadio(this)">
+                            <span class="flex flex-1">
+                                <span class="flex flex-col">
+                                    <span class="block text-sm font-bold {{ $textClass }}">{{ $actualLabel }}</span>
+                                    <span class="mt-1 flex items-center text-xs text-gray-500">{{ $subText }}</span>
+                                </span>
                             </span>
-                        </span>
-                        <span class="check-icon absolute right-4 top-4 text-lg text-emerald-500 {{ $deal->status == 'Closed Sale' ? 'block' : 'hidden' }}">✓</span>
-                    </label>
+                            <span class="check-icon absolute right-4 top-4 text-lg {{ $checkColor }} {{ $isCurrent ? 'block' : 'hidden' }}">✓</span>
+                        </label>
+                    @endforeach
 
                 </div>
             </div>
@@ -215,9 +261,10 @@
                             @php
                                 $dotColor = 'bg-gray-400';
                                 $textColor = 'text-gray-600';
-                                if($log->new_status == 'Closed Sale') { $dotColor = 'bg-emerald-500'; $textColor = 'text-emerald-600'; }
-                                elseif($log->new_status == 'Following') { $dotColor = 'bg-blue-500'; $textColor = 'text-blue-600'; }
-                                elseif($log->new_status == 'Forecast') { $dotColor = 'bg-amber-500'; $textColor = 'text-amber-600'; }
+                                if(\Illuminate\Support\Str::contains($log->new_status, 'Closed Sale')) { $dotColor = 'bg-emerald-500'; $textColor = 'text-emerald-600'; }
+                                elseif(\Illuminate\Support\Str::contains($log->new_status, 'Following')) { $dotColor = 'bg-blue-500'; $textColor = 'text-blue-600'; }
+                                elseif(\Illuminate\Support\Str::contains($log->new_status, 'Forecast')) { $dotColor = 'bg-amber-500'; $textColor = 'text-amber-600'; }
+                                elseif(\Illuminate\Support\Str::contains($log->new_status, 'Denied')) { $dotColor = 'bg-rose-500'; $textColor = 'text-rose-600'; }
                             @endphp
 
                             <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full {{ $dotColor }} ring-4 ring-white"></div>
@@ -270,13 +317,22 @@
         });
 
         const parent = element.closest('label');
-        const val = element.value;
-        let colorClass = 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/30';
+        const val = element.value || '';
+        const labelAttr = element.getAttribute('data-label') || '';
+        const searchStr = val + ' ' + labelAttr;
         
-        if (val === 'Following') {
+        // สีเริ่มต้นสำหรับสถานะใหม่ๆ
+        let colorClass = 'border-slate-500 ring-1 ring-slate-500 bg-slate-50/30';
+        
+        // เช็กสถานะหลักโดยใช้เพื่อลงไฮไลท์สีให้ตรงกล่อง
+        if (searchStr.includes('Forecast')) {
+            colorClass = 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/30';
+        } else if (searchStr.includes('Following')) {
             colorClass = 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/30';
-        } else if (val === 'Closed Sale') {
+        } else if (searchStr.includes('Closed Sale')) {
             colorClass = 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/30';
+        } else if (searchStr.includes('Denied')) {
+            colorClass = 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/30';
         }
 
         parent.className = `relative flex cursor-pointer rounded-lg border p-4 shadow-sm focus:outline-none transition-all ${colorClass}`;

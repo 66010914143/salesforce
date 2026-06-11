@@ -67,7 +67,7 @@
                 <input type="hidden" name="total_people" id="total_people" value="1">
                 
                 <label class="block text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                    <i class="fa-solid fa-users text-indigo-500"></i> รายชื่อผู้เรียนร่วมเพิ่มเติม (ถ้ามี)
+                    <i class="fa-solid fa-users text-indigo-500"></i> รายชื่อลูกค้าเพิ่มเติม (ถ้ามี)
                 </label>
                 
                 <div id="members-container" class="space-y-3">
